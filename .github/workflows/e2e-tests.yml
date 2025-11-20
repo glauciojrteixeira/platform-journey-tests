@@ -1,0 +1,105 @@
+name: E2E Tests
+
+on:
+  push:
+    branches: [main, develop]
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+jobs:
+  # Validação de estrutura (não executa testes completos)
+  local-validation:
+    name: E2E Tests - LOCAL Validation
+    runs-on: ubuntu-latest
+    if: github.event_name == 'pull_request'
+    steps:
+      - uses: actions/checkout@v3
+      
+      - name: Set up JDK 21
+        uses: actions/setup-java@v3
+        with:
+          java-version: '21'
+          distribution: 'temurin'
+      
+      - name: Validate Structure
+        run: |
+          # Apenas valida que código compila e estrutura está correta
+          # Não executa testes - testes LOCAL devem rodar na máquina do desenvolvedor
+          mvn compile test-compile
+          # Valida sintaxe Gherkin
+          mvn test-compile -Dcucumber.filter.tags="@nonexistent"
+      
+      - name: Upload Validation Results
+        uses: actions/upload-artifact@v3
+        if: always()
+        with:
+          name: local-validation-results
+          path: target/
+
+  # SIT - Executar em merges para develop
+  sit-tests:
+    name: E2E Tests - SIT
+    runs-on: ubuntu-latest
+    if: github.ref == 'refs/heads/develop' || github.event_name == 'workflow_dispatch'
+    environment:
+      name: sit
+    steps:
+      - uses: actions/checkout@v3
+      
+      - name: Set up JDK 21
+        uses: actions/setup-java@v3
+        with:
+          java-version: '21'
+          distribution: 'temurin'
+      
+      - name: Run SIT E2E Tests
+        run: |
+          mvn test \
+            -Dspring.profiles.active=sit \
+            -Dcucumber.filter.tags="@sit and @implemented and @bu-identity"
+        env:
+          SIT_IDENTITY_URL: ${{ secrets.SIT_IDENTITY_URL }}
+          SIT_AUTH_URL: ${{ secrets.SIT_AUTH_URL }}
+          SIT_PROFILE_URL: ${{ secrets.SIT_PROFILE_URL }}
+      
+      - name: Upload Results
+        uses: actions/upload-artifact@v3
+        if: always()
+        with:
+          name: sit-test-results
+          path: target/cucumber-reports/
+
+  # UAT - Executar em merges para main
+  uat-tests:
+    name: E2E Tests - UAT
+    runs-on: ubuntu-latest
+    if: github.ref == 'refs/heads/main' || github.event_name == 'workflow_dispatch'
+    environment:
+      name: uat
+    steps:
+      - uses: actions/checkout@v3
+      
+      - name: Set up JDK 21
+        uses: actions/setup-java@v3
+        with:
+          java-version: '21'
+          distribution: 'temurin'
+      
+      - name: Run UAT E2E Tests
+        run: |
+          mvn test \
+            -Dspring.profiles.active=uat \
+            -Dcucumber.filter.tags="@uat and @implemented and (@critical or @high) and @bu-identity"
+        env:
+          UAT_IDENTITY_URL: ${{ secrets.UAT_IDENTITY_URL }}
+          UAT_AUTH_URL: ${{ secrets.UAT_AUTH_URL }}
+          UAT_PROFILE_URL: ${{ secrets.UAT_PROFILE_URL }}
+      
+      - name: Upload Results
+        uses: actions/upload-artifact@v3
+        if: always()
+        with:
+          name: uat-test-results
+          path: target/cucumber-reports/
+

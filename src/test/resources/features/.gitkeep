@@ -1,0 +1,6 @@
+# Diretório para features Gherkin
+# Features serão organizadas por domínio funcional:
+# - authentication/
+# - identity/
+# - journeys/
+

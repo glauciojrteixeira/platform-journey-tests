@@ -1,0 +1,15 @@
+# Configuração para ambiente LOCAL
+# No ambiente LOCAL, os testes E2E utilizam a mesma infraestrutura Docker 
+# já em execução para desenvolvimento (PostgreSQL, MongoDB, RabbitMQ).
+# Não há necessidade de Testcontainers.
+
+e2e:
+  environment: local
+  simulate-provider:
+    enabled: true  # Sempre simular em local para evitar custos e dependências externas
+  services:
+    identity-url: http://localhost:8084
+    auth-url: http://localhost:8080
+    profile-url: http://localhost:8088
+  timeout: 30000
+

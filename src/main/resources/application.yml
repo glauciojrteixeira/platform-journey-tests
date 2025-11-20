@@ -1,0 +1,33 @@
+spring:
+  application:
+    name: platform-journey-tests
+
+# Configuração padrão E2E
+e2e:
+  environment: local
+  timeout: 30000
+  # Timeouts para eventos assíncronos (mensageria)
+  # Considerando cluster local com latência mínima:
+  # - Outbox Pattern: até 2s de delay
+  # - Processamento: ~100ms
+  # - Polling overhead: 200ms
+  # - Margem de segurança: 200ms
+  # Total mínimo seguro: ~3 segundos
+  event-timeout-seconds: 3
+  event-poll-interval-ms: 200
+  # Simulação de providers: permite simular envio de mensagens aos providers
+  # em ambientes não-PROD, evitando custos e permitindo testes sem dependências externas
+  simulate-provider:
+    enabled: true  # Default: true para local/sit/uat, false para prod
+  services:
+    identity-url: http://localhost:8084
+    auth-url: http://localhost:8080
+    profile-url: http://localhost:8088
+
+# Configuração RabbitMQ para testes E2E
+rabbitmq:
+  host: localhost
+  port: 5672
+  username: guest
+  password: guest
+

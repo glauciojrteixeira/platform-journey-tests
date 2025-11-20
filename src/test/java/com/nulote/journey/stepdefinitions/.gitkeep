@@ -1,0 +1,6 @@
+# Diretório para Step Definitions
+# Step definitions serão organizados por domínio:
+# - AuthenticationSteps.java
+# - IdentitySteps.java
+# - ProfileSteps.java
+

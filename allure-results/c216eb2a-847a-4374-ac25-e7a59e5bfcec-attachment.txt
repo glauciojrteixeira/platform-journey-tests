@@ -1,0 +1,17 @@
+Vary=origin,access-control-request-method,access-control-request-headers,accept-encoding
+request-trace-id=93ea2b33-293a-4ba0-bedc-6d3a635b9838
+X-Content-Type-Options=nosniff
+X-XSS-Protection=1; mode=block
+Cache-Control=no-cache, no-store, max-age=0, must-revalidate
+Pragma=no-cache
+Expires=0
+X-Frame-Options=DENY
+Referrer-Policy=strict-origin-when-cross-origin
+Strict-Transport-Security=max-age=31536000; includeSubDomains; preload
+Permissions-Policy=geolocation=(), microphone=(), camera=()
+Content-Encoding=gzip
+Content-Type=application/json
+Transfer-Encoding=chunked
+Date=Tue, 18 Nov 2025 12:21:45 GMT
+Keep-Alive=timeout=60
+Connection=keep-alive

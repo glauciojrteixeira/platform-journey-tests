@@ -1,0 +1,14 @@
+# Configuração para ambiente SIT (System Integration Testing)
+# Utiliza infraestrutura real dos ambientes de teste.
+# Não há necessidade de cleanup - idempotência + dados únicos garantem isolamento.
+
+e2e:
+  environment: sit
+  simulate-provider:
+    enabled: true  # Sempre simular em SIT para evitar custos e permitir testes frequentes
+  services:
+    identity-url: ${SIT_IDENTITY_URL:http://identity-service.sit.example.com}
+    auth-url: ${SIT_AUTH_URL:http://auth-service.sit.example.com}
+    profile-url: ${SIT_PROFILE_URL:http://profile-service.sit.example.com}
+  timeout: 60000
+

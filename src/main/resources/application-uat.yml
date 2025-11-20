@@ -1,0 +1,15 @@
+# Configuração para ambiente UAT (User Acceptance Testing)
+# Utiliza infraestrutura real dos ambientes de aceitação.
+# Não há necessidade de cleanup - idempotência + dados únicos garantem isolamento.
+# Dados permanecem para rastreabilidade e análise.
+
+e2e:
+  environment: uat
+  simulate-provider:
+    enabled: true  # Sempre simular em UAT para evitar custos e permitir testes frequentes
+  services:
+    identity-url: ${UAT_IDENTITY_URL:http://identity-service.uat.example.com}
+    auth-url: ${UAT_AUTH_URL:http://auth-service.uat.example.com}
+    profile-url: ${UAT_PROFILE_URL:http://profile-service.uat.example.com}
+  timeout: 90000
+
