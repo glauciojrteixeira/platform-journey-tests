@@ -33,3 +33,7 @@ build/
 .vscode/
 application-uat-local.yml
 application-sit-local.yml
+
+### Allure ###
+allure-results/
+.allure/
