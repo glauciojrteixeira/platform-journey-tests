@@ -1,4 +1,4 @@
-@implemented @segment_1 @j1.11 @otp @critical @e2e @bu-identity
+@implemented @segment_1 @j1.11 @otp @critical @e2e @vs-identity
 Feature: Geração e Validação de OTP
   Como um usuário
   Eu quero solicitar e validar códigos OTP

@@ -1,10 +1,10 @@
-# Mapeamento Completo de Jornadas - BU Identity
+# Mapeamento Completo de Jornadas - VS Identity
 
 ## 📊 Resumo Executivo
 
 **Total de Jornadas Documentadas**: **55 jornadas**
 
-Este documento mapeia todas as jornadas previstas nos microserviços da BU Identity e compara com os testes E2E implementados.
+Este documento mapeia todas as jornadas previstas nos microserviços da VS Identity e compara com os testes E2E implementados.
 
 ---
 
@@ -276,5 +276,5 @@ Este documento mapeia todas as jornadas previstas nos microserviços da BU Ident
 ---
 
 **Última atualização**: 2025-11-14  
-**Baseado em**: `BU-Identity/ETA/JORNADAS_CLIENTES.md` (55 jornadas documentadas)
+**Baseado em**: `VS-Identity/ETA/JORNADAS_CLIENTES.md` (55 jornadas documentadas)
 

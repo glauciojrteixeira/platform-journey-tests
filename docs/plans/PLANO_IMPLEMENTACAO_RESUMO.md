@@ -1,4 +1,4 @@
-# 📋 Resumo Executivo - Plano de Implementação Features BU Identity
+# 📋 Resumo Executivo - Plano de Implementação Features VS Identity
 
 **Data**: 2025-11-18  
 **Prazo Total**: 6-8 meses  
@@ -8,7 +8,7 @@
 
 ## 🎯 Objetivo
 
-Implementar **48 jornadas pendentes** (87% do total) nos microserviços da BU Identity para alcançar **100% de cobertura de testes E2E**.
+Implementar **48 jornadas pendentes** (87% do total) nos microserviços da VS Identity para alcançar **100% de cobertura de testes E2E**.
 
 ---
 

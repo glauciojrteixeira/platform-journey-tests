@@ -149,7 +149,7 @@ Além de `@not_implemented`, adicione tags específicas para facilitar identific
 
 ## 📚 Referências
 
-- [Estratégia de Testes E2E](../technical-note/bdd-e2e-testing-strategy.md)
+- [Estratégia de Testes E2E](../engineering-playbook/bdd-e2e-testing-strategy.md)
 - [Guia de Tags de Testes](TEST_TAGS_GUIDE.md)
 - [Resumo de Execução de Testes](TEST_EXECUTION_SUMMARY.md)
 

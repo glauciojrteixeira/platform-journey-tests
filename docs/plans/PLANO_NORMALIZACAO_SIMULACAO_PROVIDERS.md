@@ -505,8 +505,8 @@ e2e:
 
 ## 🔗 Referências
 
-- [Estratégia de Simulação de Providers](../BU-CustomerCommunications/transactional-messaging-service/ESTRATEGIA_SIMULACAO_PROVIDERS.md)
-- [Plano de Implementação BU Identity](../BU-Identity/PLANO_IMPLEMENTACAO_SIMULACAO_PROVIDERS.md)
+- [Estratégia de Simulação de Providers](../VS-CustomerCommunications/transactional-messaging-service/ESTRATEGIA_SIMULACAO_PROVIDERS.md)
+- [Plano de Implementação VS Identity](../VS-Identity/PLANO_IMPLEMENTACAO_SIMULACAO_PROVIDERS.md)
 - [Documentação RabbitMQ - Headers](https://www.rabbitmq.com/headers.html)
 
 ---

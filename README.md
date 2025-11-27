@@ -2,6 +2,12 @@
 
 Projeto de testes E2E (End-to-End) utilizando BDD (Behavior-Driven Development) com Cucumber e Gherkin para validar jornadas de negócio em microserviços Java cloud-native.
 
+## 📚 Documentação
+
+Toda a documentação técnica, arquitetural e de implementação está organizada no diretório **[docs/](docs/)**.
+
+> 💡 **Acesso rápido**: Consulte o **[Índice Completo de Documentação](docs/INDEX.md)** para navegar por todos os documentos disponíveis.
+
 ## 📋 Visão Geral
 
 Este projeto implementa testes E2E que validam fluxos completos entre múltiplos microserviços, garantindo que as jornadas de negócio funcionem corretamente end-to-end.
@@ -73,13 +79,13 @@ mvn test -Dspring.profiles.active=uat -Dcucumber.filter.tags="@e2e and not @not_
 
 **3. Ou criar `application-uat-local.yml`** (arquivo local não versionado)
 
-> 📖 **Guia Completo**: Consulte `UAT_EXECUTION_GUIDE.md` para instruções detalhadas sobre conectividade, VPN, proxy e troubleshooting.
+> 📖 **Guia Completo**: Consulte **[UAT_EXECUTION_GUIDE.md](docs/guides/UAT_EXECUTION_GUIDE.md)** para instruções detalhadas sobre conectividade, VPN, proxy e troubleshooting.
 
 ## 📝 Documentação
 
 Para mais detalhes sobre a estratégia de testes E2E, consulte:
-- `technical-note/bdd-e2e-testing-strategy.md` - Documentação completa da estratégia
-- `DEPENDENCIAS_EXTERNAS.md` - Testes que dependem de serviços externos não implementados
+- `engineering-playbook/bdd-e2e-testing-strategy.md` - Documentação completa da estratégia
+- **[DEPENDENCIES_EXTERNAS.md](docs/guides/DEPENDENCIES_EXTERNAS.md)** - Testes que dependem de serviços externos não implementados
 
 ---
 
@@ -89,8 +95,8 @@ Para mais detalhes sobre a estratégia de testes E2E, consulte:
 
 Plano de normalização para suportar o header `simulate-provider` que permite simular o envio de mensagens aos providers em ambientes não-PROD:
 
-- **[RESUMO_EXECUTIVO_NORMALIZACAO_SIMULACAO.md](RESUMO_EXECUTIVO_NORMALIZACAO_SIMULACAO.md)** - Resumo executivo e visão geral
-- **[PLANO_NORMALIZACAO_SIMULACAO_PROVIDERS.md](PLANO_NORMALIZACAO_SIMULACAO_PROVIDERS.md)** - Plano detalhado de implementação
+- **[RESUMO_EXECUTIVO_NORMALIZACAO_SIMULACAO.md](docs/guides/RESUMO_EXECUTIVO_NORMALIZACAO_SIMULACAO.md)** - Resumo executivo e visão geral
+- **[PLANO_NORMALIZACAO_SIMULACAO_PROVIDERS.md](docs/plans/PLANO_NORMALIZACAO_SIMULACAO_PROVIDERS.md)** - Plano detalhado de implementação
 
 > 📋 **Status**: Planejamento completo. Aguardando aprovação para iniciar implementação.
 
@@ -112,7 +118,7 @@ Após a execução, os relatórios são gerados em:
 O projeto utiliza tags para organização e execução seletiva:
 
 ### **Tags por Business Unit**
-- `@bu-identity` - Testes da Business Unit Identity
+- `@vs-identity` - Testes da Business Unit Identity
 - `@cross-bu` - Testes que cruzam múltiplas BUs
 
 ### **Tags por Segmento**

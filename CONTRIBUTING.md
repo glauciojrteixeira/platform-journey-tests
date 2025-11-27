@@ -29,7 +29,7 @@ Feature: Nome Descritivo da Feature
 ### **Passo 2: Adicionar Tags Estratégicas**
 
 Cada feature deve ter tags mínimas:
-- **Business Unit**: `@bu-identity`, `@cross-bu`
+- **Business Unit**: `@vs-identity`, `@cross-bu`
 - **Segmento**: `@segment_1`, `@segment_2`, etc.
 - **Jornada**: `@j1.1`, `@j2.3`, etc.
 - **Status**: `@implemented`, `@wip`, `@planned`
@@ -155,7 +155,7 @@ Antes de fazer commit:
 
 ## 📖 Referências
 
-- Nota técnica completa: `technical-note/bdd-e2e-testing-strategy.md`
+- Nota técnica completa: `engineering-playbook/bdd-e2e-testing-strategy.md`
 - Exemplos de features: `src/test/resources/features/`
 - Step definitions existentes: `src/test/java/com/nulote/journey/stepdefinitions/`
 

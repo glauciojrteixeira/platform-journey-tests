@@ -8,9 +8,9 @@
 - **Cenários Implementados**: 18 cenários (15.8%)
 - **Cenários Não Implementados**: 75 cenários (65.8%)
 - **Cenários Parciais**: 5 cenários (4.4%)
-- **Cenários para BU Identity**: 39 cenários (34.2%)
+- **Cenários para VS Identity**: 39 cenários (34.2%)
 
-### Distribuição por Microserviço (BU Identity)
+### Distribuição por Microserviço (VS Identity)
 - **Identity Service**: 16 cenários (4 implementados, 12 não implementados)
 - **Auth Service**: 18 cenários (9 implementados, 9 não implementados)
 - **Profile Service**: 3 cenários (3 implementados, 0 não implementados)
@@ -442,5 +442,5 @@
 **Data da Análise**: 2025-11-17  
 **Versão do ARCHITECTURE.md**: 2.0  
 **Total de Cenários Analisados**: 114  
-**Cenários BU Identity**: 39
+**Cenários VS Identity**: 39
 

@@ -405,7 +405,7 @@ Antes de executar testes contra UAT:
 - **README.md** - Documentação geral do projeto
 - **QUICK_REFERENCE.md** - Referência rápida de comandos
 - **application-uat.yml** - Configuração padrão do ambiente UAT
-- **technical-note/bdd-e2e-testing-strategy.md** - Estratégia completa de testes
+- **engineering-playbook/bdd-e2e-testing-strategy.md** - Estratégia completa de testes
 
 ---
 

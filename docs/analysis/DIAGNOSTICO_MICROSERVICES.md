@@ -1,4 +1,4 @@
-# Diagnóstico: Integração com Microserviços BU-Identity
+# Diagnóstico: Integração com Microserviços VS-Identity
 
 **Data:** 2025-11-17  
 **Status:** Investigação Completa

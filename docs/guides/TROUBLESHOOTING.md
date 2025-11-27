@@ -209,6 +209,6 @@ mvn clean install -DskipTests
 ## 📞 Suporte
 
 Para mais detalhes, consulte:
-- Nota técnica completa: `technical-note/bdd-e2e-testing-strategy.md`
+- Nota técnica completa: `engineering-playbook/bdd-e2e-testing-strategy.md`
 - Seção Troubleshooting na nota técnica (linha 3902+)
 

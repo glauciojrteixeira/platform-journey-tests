@@ -4,7 +4,7 @@
 
 **Status**: ✅ **COMPLETO**
 
-Todas as 55 jornadas documentadas nos microserviços da BU Identity agora possuem cenários de teste E2E criados e organizados.
+Todas as 55 jornadas documentadas nos microserviços da VS Identity agora possuem cenários de teste E2E criados e organizados.
 
 ---
 
@@ -249,7 +249,7 @@ src/test/resources/features/
 
 **Status Final**: ✅ **IMPLEMENTAÇÃO COMPLETA DE CENÁRIOS**
 
-Todas as 55 jornadas documentadas nos microserviços da BU Identity agora possuem:
+Todas as 55 jornadas documentadas nos microserviços da VS Identity agora possuem:
 - ✅ Arquivos feature Gherkin criados
 - ✅ Tags apropriadas aplicadas
 - ✅ Estrutura organizada por segmento

@@ -78,13 +78,13 @@ Implementar controle de versão `/v1` de forma consistente em todos os microserv
 ## 📋 Arquivos Modificados
 
 ### Identity Service:
-1. `BU-Identity/identity-service/api/src/main/java/com/projeto2026/identity_service/infrastructure/controllers/IdentityController.java`
-2. `BU-Identity/identity-service/api/src/main/java/com/projeto2026/identity_service/infrastructure/controllers/LegalEntityController.java`
-3. `BU-Identity/identity-service/api/src/main/java/com/projeto2026/identity_service/infrastructure/controllers/UserManagementController.java`
-4. `BU-Identity/identity-service/api/src/main/java/com/projeto2026/identity_service/infrastructure/config/SecurityConfiguration.java`
+1. `VS-Identity/identity-service/api/src/main/java/com/projeto2026/identity_service/infrastructure/controllers/IdentityController.java`
+2. `VS-Identity/identity-service/api/src/main/java/com/projeto2026/identity_service/infrastructure/controllers/LegalEntityController.java`
+3. `VS-Identity/identity-service/api/src/main/java/com/projeto2026/identity_service/infrastructure/controllers/UserManagementController.java`
+4. `VS-Identity/identity-service/api/src/main/java/com/projeto2026/identity_service/infrastructure/config/SecurityConfiguration.java`
 
 ### Profile Service:
-5. `BU-Identity/user-profile-service/api/src/main/java/com/projeto2026/user_profile_service/infrastructure/config/SecurityConfiguration.java`
+5. `VS-Identity/user-profile-service/api/src/main/java/com/projeto2026/user_profile_service/infrastructure/config/SecurityConfiguration.java`
 
 ---
 
