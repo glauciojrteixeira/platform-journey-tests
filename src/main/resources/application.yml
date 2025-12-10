@@ -10,11 +10,11 @@ e2e:
   # Considerando cluster local com latência mínima:
   # - Outbox Pattern: até 2s de delay
   # - Processamento: ~100ms
-  # - Polling overhead: 200ms
+  # - Polling overhead: reduzido para 500ms (menos verbosidade)
   # - Margem de segurança: 200ms
   # Total mínimo seguro: ~3 segundos
   event-timeout-seconds: 3
-  event-poll-interval-ms: 200
+  event-poll-interval-ms: 500  # Aumentado de 200ms para 500ms para reduzir verbosidade dos logs
   # Simulação de providers: permite simular envio de mensagens aos providers
   # em ambientes não-PROD, evitando custos e permitindo testes sem dependências externas
   simulate-provider:

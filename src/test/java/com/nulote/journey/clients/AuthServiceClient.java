@@ -27,6 +27,18 @@ public class AuthServiceClient {
     }
     
     /**
+     * Adiciona os headers obrigatórios de correlação e governança.
+     * 
+     * @param spec RequestSpecification do RestAssured
+     * @return RequestSpecification com headers adicionados
+     */
+    private RequestSpecification addRequiredHeaders(RequestSpecification spec) {
+        spec = spec.header("request-caller", "e2e-tests")
+                   .header("request-origin", "direct");
+        return spec;
+    }
+    
+    /**
      * Adiciona o header simulate-provider se a simulação estiver habilitada.
      * 
      * @param spec RequestSpecification do RestAssured
@@ -40,11 +52,12 @@ public class AuthServiceClient {
     }
     
     public Response login(Object request) {
-        return RestAssured.given()
+        RequestSpecification spec = RestAssured.given()
             .baseUri(getBaseUrl())
             .contentType(ContentType.JSON)
-            .header("request-trace-id", getRequestTraceId())
-            .body(request)
+            .header("request-trace-id", getRequestTraceId());
+        spec = addRequiredHeaders(spec);
+        return spec.body(request)
             .when()
             .post("/api/v1/auth/login")
             .then()
@@ -58,6 +71,7 @@ public class AuthServiceClient {
             .contentType(ContentType.JSON)
             .header("request-trace-id", getRequestTraceId());
         
+        spec = addRequiredHeaders(spec);
         spec = addSimulateProviderHeader(spec);
         
         return spec.body(request)
@@ -68,12 +82,35 @@ public class AuthServiceClient {
             .response();
     }
     
-    public Response validateOtp(Object request) {
-        return RestAssured.given()
+    /**
+     * Solicita OTP sem simulação (envio real ao provider)
+     * 
+     * @param request Dados da requisição OTP
+     * @return Resposta HTTP
+     */
+    public Response requestOtpWithoutSimulation(Object request) {
+        RequestSpecification spec = RestAssured.given()
             .baseUri(getBaseUrl())
             .contentType(ContentType.JSON)
-            .header("request-trace-id", getRequestTraceId())
-            .body(request)
+            .header("request-trace-id", getRequestTraceId());
+        spec = addRequiredHeaders(spec);
+        // NÃO adicionar simulate-provider header
+        
+        return spec.body(request)
+            .when()
+            .post("/api/v1/auth/otp/request")
+            .then()
+            .extract()
+            .response();
+    }
+    
+    public Response validateOtp(Object request) {
+        RequestSpecification spec = RestAssured.given()
+            .baseUri(getBaseUrl())
+            .contentType(ContentType.JSON)
+            .header("request-trace-id", getRequestTraceId());
+        spec = addRequiredHeaders(spec);
+        return spec.body(request)
             .when()
             .post("/api/v1/auth/otp/validate")
             .then()
@@ -90,24 +127,26 @@ public class AuthServiceClient {
      * @return Resposta HTTP (200 se usuário existe, 404 se não existe)
      */
     public Response getCredentialsByUserUuid(String userUuid) {
-        return RestAssured.given()
+        RequestSpecification spec = RestAssured.given()
             .baseUri(getBaseUrl())
-            .header("request-trace-id", getRequestTraceId())
-            .pathParam("uuid", userUuid)
+            .header("request-trace-id", getRequestTraceId());
+        spec = addRequiredHeaders(spec);
+        return spec.pathParam("uuid", userUuid)
             .when()
-            .get("/api/v1/users/{uuid}")
+            .get("/api/v1/auth/users/{uuid}")
             .then()
             .extract()
             .response();
     }
     
     public Response validateToken(String token) {
-        return RestAssured.given()
+        RequestSpecification spec = RestAssured.given()
             .baseUri(getBaseUrl())
             .contentType(ContentType.JSON)
             .header("request-trace-id", getRequestTraceId())
-            .header("Authorization", "Bearer " + token)
-            .when()
+            .header("Authorization", "Bearer " + token);
+        spec = addRequiredHeaders(spec);
+        return spec.when()
             .post("/api/v1/auth/token/validate")
             .then()
             .extract()
@@ -115,12 +154,13 @@ public class AuthServiceClient {
     }
     
     public Response logout(String token) {
-        return RestAssured.given()
+        RequestSpecification spec = RestAssured.given()
             .baseUri(getBaseUrl())
             .contentType(ContentType.JSON)
             .header("request-trace-id", getRequestTraceId())
-            .header("Authorization", "Bearer " + token)
-            .when()
+            .header("Authorization", "Bearer " + token);
+        spec = addRequiredHeaders(spec);
+        return spec.when()
             .post("/api/v1/auth/logout")
             .then()
             .extract()
@@ -128,12 +168,13 @@ public class AuthServiceClient {
     }
     
     public Response changePassword(Object request, String token) {
-        return RestAssured.given()
+        RequestSpecification spec = RestAssured.given()
             .baseUri(getBaseUrl())
             .contentType(ContentType.JSON)
             .header("request-trace-id", getRequestTraceId())
-            .header("Authorization", "Bearer " + token)
-            .body(request)
+            .header("Authorization", "Bearer " + token);
+        spec = addRequiredHeaders(spec);
+        return spec.body(request)
             .when()
             .post("/api/v1/auth/password/change")
             .then()
@@ -142,12 +183,13 @@ public class AuthServiceClient {
     }
     
     public Response revokeAllTokens(String userUuid, String token) {
-        return RestAssured.given()
+        RequestSpecification spec = RestAssured.given()
             .baseUri(getBaseUrl())
             .contentType(ContentType.JSON)
             .header("request-trace-id", getRequestTraceId())
-            .header("Authorization", "Bearer " + token)
-            .pathParam("userUuid", userUuid)
+            .header("Authorization", "Bearer " + token);
+        spec = addRequiredHeaders(spec);
+        return spec.pathParam("userUuid", userUuid)
             .when()
             .post("/api/v1/auth/tokens/revoke-all/{userUuid}")
             .then()
@@ -156,11 +198,13 @@ public class AuthServiceClient {
     }
     
     public Response recoverPassword(Object request) {
-        return RestAssured.given()
+        RequestSpecification spec = RestAssured.given()
             .baseUri(getBaseUrl())
             .contentType(ContentType.JSON)
-            .header("request-trace-id", getRequestTraceId())
-            .body(request)
+            .header("request-trace-id", getRequestTraceId());
+        spec = addRequiredHeaders(spec);
+        spec = addSimulateProviderHeader(spec); // Adicionar simulate-provider para garantir que código de teste seja salvo
+        return spec.body(request)
             .when()
             .post("/api/v1/auth/password/recover")
             .then()
@@ -169,11 +213,12 @@ public class AuthServiceClient {
     }
     
     public Response resetPassword(Object request) {
-        return RestAssured.given()
+        RequestSpecification spec = RestAssured.given()
             .baseUri(getBaseUrl())
             .contentType(ContentType.JSON)
-            .header("request-trace-id", getRequestTraceId())
-            .body(request)
+            .header("request-trace-id", getRequestTraceId());
+        spec = addRequiredHeaders(spec);
+        return spec.body(request)
             .when()
             .post("/api/v1/auth/password/reset")
             .then()
@@ -192,14 +237,36 @@ public class AuthServiceClient {
      * @return Resposta HTTP
      */
     public Response updateUser(String uuid, Object request) {
-        return RestAssured.given()
+        RequestSpecification spec = RestAssured.given()
             .baseUri(getBaseUrl())
             .contentType(ContentType.JSON)
-            .header("request-trace-id", getRequestTraceId())
-            .pathParam("uuid", uuid)
+            .header("request-trace-id", getRequestTraceId());
+        spec = addRequiredHeaders(spec);
+        return spec.pathParam("uuid", uuid)
             .body(request)
             .when()
-            .put("/api/v1/users/{uuid}")
+            .put("/api/v1/auth/users/{uuid}")
+            .then()
+            .extract()
+            .response();
+    }
+    
+    /**
+     * Obtém o código OTP do endpoint de teste quando simulate-provider está ativo.
+     * Este endpoint é usado apenas para facilitar testes E2E.
+     * 
+     * @param otpId UUID do OTP
+     * @return Resposta HTTP contendo o código OTP
+     */
+    public Response getTestOtpCode(String otpId) {
+        RequestSpecification spec = RestAssured.given()
+            .baseUri(getBaseUrl())
+            .header("request-trace-id", getRequestTraceId());
+        spec = addRequiredHeaders(spec);
+        spec = addSimulateProviderHeader(spec); // Requerido para acessar o endpoint de teste
+        return spec.pathParam("otpId", otpId)
+            .when()
+            .get("/api/v1/auth/otp/{otpId}/test-code")
             .then()
             .extract()
             .response();

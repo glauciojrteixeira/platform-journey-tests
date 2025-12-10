@@ -14,6 +14,7 @@ public class UserFixture {
     private Map<String, String> userData;
     private String createdUserUuid;
     private String otpCode;
+    private String sessionToken;
     
     /**
      * Define os dados do usuário a partir de uma DataTable do Cucumber
@@ -70,6 +71,24 @@ public class UserFixture {
     }
     
     /**
+     * Define o sessionToken obtido após validação de OTP
+     * 
+     * @param sessionToken Token de sessão
+     */
+    public void setSessionToken(String sessionToken) {
+        this.sessionToken = sessionToken;
+    }
+    
+    /**
+     * Retorna o sessionToken
+     * 
+     * @return SessionToken ou null se ainda não foi obtido
+     */
+    public String getSessionToken() {
+        return sessionToken;
+    }
+    
+    /**
      * Constrói um objeto de requisição para criar usuário no Identity Service
      * 
      * @return Objeto de requisição (Map para ser usado com RestAssured)
@@ -117,13 +136,24 @@ public class UserFixture {
      */
     public Map<String, Object> buildOtpRequest(String channel, String purpose) {
         var request = new java.util.HashMap<String, Object>();
-        String userUuid = createdUserUuid != null ? createdUserUuid : userData.get("userUuid");
-        if (userUuid == null) {
-            throw new IllegalStateException("User UUID is required to request OTP. Create user first or set userUuid in userData.");
+        // Para REGISTRATION, userUuid pode ser null (usuário ainda não existe)
+        // Para outros propósitos (PASSWORD_RECOVERY, etc.), userUuid é necessário
+        if (!"REGISTRATION".equals(purpose)) {
+            String userUuid = createdUserUuid != null ? createdUserUuid : (userData != null ? userData.get("userUuid") : null);
+            if (userUuid == null) {
+                throw new IllegalStateException("User UUID is required to request OTP for purpose: " + purpose + ". Create user first or set userUuid in userData.");
+            }
+            request.put("userUuid", userUuid);
+        } else {
+            // Para REGISTRATION, userUuid é null
+            request.put("userUuid", null);
         }
-        request.put("userUuid", userUuid);
         request.put("channel", channel);
         request.put("purpose", purpose);
+        // Adicionar email se disponível (para REGISTRATION)
+        if (userData != null && userData.get("email") != null) {
+            request.put("email", userData.get("email"));
+        }
         return request;
     }
     

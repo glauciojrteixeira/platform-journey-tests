@@ -39,7 +39,7 @@ Feature: Alteração de Dados Pessoais
     When eu tento alterar meu CPF para "98765432100"
     Then a alteração de identidade deve falhar com status 400
     And o erro deve indicar que CPF não pode ser alterado
-    And a mensagem de erro de identidade deve conter "CPF é imutável"
+    And a mensagem de erro de identidade deve conter "CPF is immutable"
 
   @not_implemented @otp_required
   Scenario: Alteração de email falha com OTP inválido

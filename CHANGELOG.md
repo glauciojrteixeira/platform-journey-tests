@@ -25,6 +25,41 @@ e este projeto adere ao [Versionamento Semântico](https://semver.org/lang/pt-BR
 ### Security
 - N/A
 
+## [0.0.3-SNAPSHOT] - 2025-12-10
+
+### Added
+- Comprehensive lessons learned documentation (`docs/lessons-learned/LICOES_APRENDIDAS_E2E.md`)
+- Guide for complete registration flow tests (`docs/guides/COMPLETE_REGISTRATION_FLOW_TESTS.md`)
+- CPF validation utility in `TestDataGenerator.isValidCpf()`
+- Multi-layer RabbitMQ message consumption strategy for active consumer environments
+- Manual test handling with `@manual` tag and default exclusion in `cucumber.properties`
+- Strategic logging patterns with `🔍 [TROUBLESHOOTING]` prefix for easier filtering
+- Enhanced OTP handling for non-simulated flows with clear manual instructions
+
+### Changed
+- Enhanced `AuthenticationSteps` with robust OTP retrieval and validation logic
+- Improved `SimulateProviderSteps` with multi-layer message consumption strategy
+- Updated `IdentitySteps` to validate and auto-generate valid CPFs when invalid ones are provided
+- Enhanced `ProfileSteps` with increased timeouts and detailed logging for troubleshooting
+- Improved `RabbitMQHelper` with cache support and more robust consumption patterns
+- Updated all service clients (`AuthServiceClient`, `IdentityServiceClient`, `ProfileServiceClient`) with better error handling
+- Enhanced `UserFixture` with better state management
+- Updated `cucumber.properties` to exclude `@manual` tests by default
+- Removed manual test scenario from `complete_registration_flow.feature`
+
+### Fixed
+- Fixed `UnsupportedOperationException` in `AuthenticationSteps` when modifying immutable maps
+- Fixed compilation errors related to lambda variable scoping in `SimulateProviderSteps`
+- Fixed RabbitMQ message consumption timeouts by implementing multi-layer strategy
+- Fixed CPF validation issues by adding automatic validation and generation
+- Fixed test data state management issues in step definitions
+- Improved handling of tests requiring manual intervention (OTP from real emails)
+
+### Documentation
+- Added comprehensive lessons learned document covering all debugging and fixing efforts
+- Updated `docs/INDEX.md` with new documentation structure
+- Documented troubleshooting patterns and best practices
+
 ## [0.0.2-SNAPSHOT] - 2025-11-27
 
 ### Changed

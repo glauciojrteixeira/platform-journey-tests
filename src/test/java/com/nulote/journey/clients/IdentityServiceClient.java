@@ -27,6 +27,18 @@ public class IdentityServiceClient {
     }
     
     /**
+     * Adiciona os headers obrigatórios de correlação e governança.
+     * 
+     * @param spec RequestSpecification do RestAssured
+     * @return RequestSpecification com headers adicionados
+     */
+    private RequestSpecification addRequiredHeaders(RequestSpecification spec) {
+        spec = spec.header("request-caller", "e2e-tests")
+                   .header("request-origin", "direct");
+        return spec;
+    }
+    
+    /**
      * Adiciona o header simulate-provider se a simulação estiver habilitada.
      * 
      * @param spec RequestSpecification do RestAssured
@@ -39,12 +51,28 @@ public class IdentityServiceClient {
         return spec;
     }
     
-    public Response createUser(Object request) {
+    /**
+     * Cria usuário. Se sessionToken estiver disponível, será usado automaticamente.
+     * 
+     * @param request Dados do usuário
+     * @param sessionToken Token de sessão opcional (obtido após validação de OTP)
+     * @return Resposta HTTP
+     */
+    public Response createUser(Object request, String sessionToken) {
+        // Se sessionToken está disponível, usar método específico
+        if (sessionToken != null && !sessionToken.trim().isEmpty()) {
+            return createUserWithSessionToken(request, sessionToken);
+        }
+        
+        // Caso contrário, criar sem sessionToken (para compatibilidade com testes antigos)
+        // NOTA: A API agora exige registration-token, então isso provavelmente falhará
+        // Mas mantemos para não quebrar código existente que não usa OTP
         RequestSpecification spec = RestAssured.given()
             .baseUri(getBaseUrl())
             .contentType(ContentType.JSON)
             .header("request-trace-id", getRequestTraceId());
         
+        spec = addRequiredHeaders(spec);
         spec = addSimulateProviderHeader(spec);
         
         return spec.body(request)
@@ -55,11 +83,72 @@ public class IdentityServiceClient {
             .response();
     }
     
-    public Response getUserByUuid(String uuid) {
-        return RestAssured.given()
+    /**
+     * Cria usuário sem sessionToken (método de compatibilidade).
+     * NOTA: A API agora exige registration-token, então este método provavelmente falhará.
+     * Use createUser(request, sessionToken) quando possível.
+     * 
+     * @param request Dados do usuário
+     * @return Resposta HTTP
+     */
+    public Response createUser(Object request) {
+        return createUser(request, null);
+    }
+    
+    /**
+     * Cria usuário com sessionToken (para registro via OTP)
+     * 
+     * @param request Dados do usuário
+     * @param sessionToken Token de sessão obtido após validação de OTP
+     * @return Resposta HTTP
+     */
+    public Response createUserWithSessionToken(Object request, String sessionToken) {
+        if (sessionToken == null || sessionToken.trim().isEmpty()) {
+            throw new IllegalArgumentException("SessionToken não pode ser null ou vazio");
+        }
+        
+        var logger = org.slf4j.LoggerFactory.getLogger(IdentityServiceClient.class);
+        logger.info("Creating user with sessionToken: {}... (length: {})", 
+            sessionToken.length() > 8 ? sessionToken.substring(0, 8) : sessionToken,
+            sessionToken.length());
+        
+        // Construir todos os headers explicitamente - IMPORTANTE: adicionar registration-token ANTES de addRequiredHeaders
+        RequestSpecification spec = RestAssured.given()
             .baseUri(getBaseUrl())
-            .header("request-trace-id", getRequestTraceId())
+            .contentType(ContentType.JSON)
+            .header("registration-token", sessionToken)  // Adicionar PRIMEIRO
+            .header("request-trace-id", getRequestTraceId());
+        
+        spec = addRequiredHeaders(spec);
+        spec = addSimulateProviderHeader(spec);
+        
+        // Verificar se o header ainda está presente (debug)
+        logger.debug("Request URL: {}/api/v1/identity/users", getBaseUrl());
+        logger.debug("SessionToken being sent: {}...", sessionToken.length() > 8 ? sessionToken.substring(0, 8) : sessionToken);
+        
+        Response response = spec.body(request)
             .when()
+            .post("/api/v1/identity/users")
+            .then()
+            .extract()
+            .response();
+        
+        // Log da resposta para debug
+        if (response.getStatusCode() != 200 && response.getStatusCode() != 201) {
+            logger.warn("Failed to create user. Status: {}, Body: {}", 
+                response.getStatusCode(), 
+                response.getBody() != null ? response.getBody().asString() : "null");
+        }
+        
+        return response;
+    }
+    
+    public Response getUserByUuid(String uuid) {
+        RequestSpecification spec = RestAssured.given()
+            .baseUri(getBaseUrl())
+            .header("request-trace-id", getRequestTraceId());
+        spec = addRequiredHeaders(spec);
+        return spec.when()
             .get("/api/v1/identity/users/{uuid}", uuid)
             .then()
             .extract()
@@ -67,10 +156,11 @@ public class IdentityServiceClient {
     }
     
     public Response findUserByEmail(String email) {
-        return RestAssured.given()
+        RequestSpecification spec = RestAssured.given()
             .baseUri(getBaseUrl())
-            .header("request-trace-id", getRequestTraceId())
-            .queryParam("email", email)
+            .header("request-trace-id", getRequestTraceId());
+        spec = addRequiredHeaders(spec);
+        return spec.queryParam("email", email)
             .when()
             .get("/api/v1/identity/users/search")
             .then()
@@ -79,11 +169,12 @@ public class IdentityServiceClient {
     }
     
     public Response updateUser(String uuid, Object request) {
-        return RestAssured.given()
+        RequestSpecification spec = RestAssured.given()
             .baseUri(getBaseUrl())
             .contentType(ContentType.JSON)
-            .header("request-trace-id", getRequestTraceId())
-            .body(request)
+            .header("request-trace-id", getRequestTraceId());
+        spec = addRequiredHeaders(spec);
+        return spec.body(request)
             .when()
             .put("/api/v1/identity/users/{uuid}", uuid)
             .then()
@@ -92,10 +183,11 @@ public class IdentityServiceClient {
     }
     
     public Response deactivateUser(String uuid) {
-        return RestAssured.given()
+        RequestSpecification spec = RestAssured.given()
             .baseUri(getBaseUrl())
-            .header("request-trace-id", getRequestTraceId())
-            .when()
+            .header("request-trace-id", getRequestTraceId());
+        spec = addRequiredHeaders(spec);
+        return spec.when()
             .delete("/api/v1/identity/users/{uuid}", uuid)
             .then()
             .extract()
@@ -103,10 +195,11 @@ public class IdentityServiceClient {
     }
     
     public Response reactivateUser(String uuid) {
-        return RestAssured.given()
+        RequestSpecification spec = RestAssured.given()
             .baseUri(getBaseUrl())
-            .header("request-trace-id", getRequestTraceId())
-            .when()
+            .header("request-trace-id", getRequestTraceId());
+        spec = addRequiredHeaders(spec);
+        return spec.when()
             .post("/api/v1/identity/users/{uuid}/reactivate", uuid)
             .then()
             .extract()

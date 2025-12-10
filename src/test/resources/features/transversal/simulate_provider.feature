@@ -20,7 +20,7 @@ Feature: Simulação de Providers
 
   @simulate-provider-user-creation
   Scenario: Header simulate-provider deve estar presente na mensagem RabbitMQ ao criar usuário
-    When eu envio os dados para criar identidade
+    Given que crio um usuário com esses dados
     Then a identidade deve ser criada com sucesso
     And o evento "user.created.v1" deve ser publicado
     And o evento "user.created.v1" deve conter o header "simulate-provider" com valor "true"

@@ -1,7 +1,7 @@
 # Índice de Documentação - Platform Journey Tests
 
-**Última Atualização:** 2025-01-27  
-**Versão:** 1.0
+**Última Atualização:** 2025-12-09  
+**Versão:** 1.1
 
 ---
 
@@ -64,6 +64,7 @@ Documentos de guias e explicações organizados em `guides/`:
 - **[ALLURE_REPORT.md](guides/ALLURE_REPORT.md)** - Guia de relatórios Allure
 - **[CENARIOS_TESTE_SIMULACAO_PROVIDERS.md](guides/CENARIOS_TESTE_SIMULACAO_PROVIDERS.md)** - Cenários de teste de simulação de providers
 - **[COBERTURA_COMPLETA_SEGMENTOS.md](guides/COBERTURA_COMPLETA_SEGMENTOS.md)** - Cobertura completa de segmentos
+- **[COMPLETE_REGISTRATION_FLOW_TESTS.md](guides/COMPLETE_REGISTRATION_FLOW_TESTS.md)** - Testes de fluxo completo de registro com OTP
 - **[CONFIGURATION_SUMMARY.md](guides/CONFIGURATION_SUMMARY.md)** - Resumo de configuração
 - **[DEPENDENCIES_EXTERNAS.md](guides/DEPENDENCIES_EXTERNAS.md)** - Dependências externas
 - **[FEATURES_SUMMARY.md](guides/FEATURES_SUMMARY.md)** - Resumo de features
@@ -136,7 +137,8 @@ platform-journey-tests/
 │       ├── TEST_EXECUTION_PROGRESS.md
 │       ├── TEST_TAGS_GUIDE.md
 │       ├── TROUBLESHOOTING.md
-│       └── UAT_EXECUTION_GUIDE.md
+│       ├── UAT_EXECUTION_GUIDE.md
+│       └── COMPLETE_REGISTRATION_FLOW_TESTS.md
 └── src/                         # Código-fonte
 ```
 

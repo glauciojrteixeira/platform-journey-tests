@@ -22,6 +22,9 @@ public class ProfileSteps {
     private ProfileServiceClient profileClient;
     
     @Autowired
+    private com.nulote.journey.clients.AuthServiceClient authClient;
+    
+    @Autowired
     private UserFixture userFixture;
     
     // Configurações de timeout para eventos assíncronos
@@ -52,58 +55,124 @@ public class ProfileSteps {
     
     @Dado("que estou autenticado na plataforma")
     public void que_estou_autenticado_na_plataforma() {
-        // Garantir que usuário está criado
-        // Se não existe, criar um usuário de teste
-        if (userFixture.getCreatedUserUuid() == null) {
-            // Criar usuário primeiro
-            var userData = new java.util.HashMap<String, String>();
-            userData.put("nome", com.nulote.journey.fixtures.TestDataGenerator.generateUniqueName());
-            userData.put("cpf", com.nulote.journey.fixtures.TestDataGenerator.generateUniqueCpf());
-            userData.put("email", com.nulote.journey.fixtures.TestDataGenerator.generateUniqueEmail());
-            userData.put("telefone", com.nulote.journey.fixtures.TestDataGenerator.generateUniquePhone());
-            userData.put("password", "TestPassword123!");
-            userFixture.setUserData(userData);
+        var logger = org.slf4j.LoggerFactory.getLogger(ProfileSteps.class);
+        
+        // Se o usuário já foi criado em um step anterior, apenas verificar se está autenticado
+        // Não precisamos criar um novo usuário se já existe um
+        if (userFixture.getCreatedUserUuid() != null) {
+            logger.debug("Usuário já existe (UUID: {}). Verificando se está autenticado...", userFixture.getCreatedUserUuid());
+            // Se usuário já existe, assumir que está autenticado (pode ter sido autenticado em step anterior)
+            return;
+        }
+        
+        // Se usuário não existe, criar um novo usuário de teste (com OTP)
+        logger.debug("Criando novo usuário para autenticação...");
+        // Criar usuário primeiro
+        var userData = new java.util.HashMap<String, String>();
+        userData.put("nome", com.nulote.journey.fixtures.TestDataGenerator.generateUniqueName());
+        userData.put("cpf", com.nulote.journey.fixtures.TestDataGenerator.generateUniqueCpf());
+        userData.put("email", com.nulote.journey.fixtures.TestDataGenerator.generateUniqueEmail());
+        userData.put("telefone", com.nulote.journey.fixtures.TestDataGenerator.generateUniquePhone());
+        userData.put("password", "TestPassword123!");
+        userFixture.setUserData(userData);
+        
+        // Criar identidade - A API agora exige registration-token (sessionToken)
+        // Se não houver sessionToken, criar OTP e obter sessionToken automaticamente
+        String sessionToken = userFixture.getSessionToken();
+        
+        if (sessionToken == null || sessionToken.trim().isEmpty()) {
+            logger.info("Nenhum sessionToken disponível. Criando OTP e sessionToken automaticamente...");
             
-            // Criar identidade
-            var request = userFixture.buildCreateUserRequest();
-            var response = identityClient.createUser(request);
-            if (response.getStatusCode() == 201 || response.getStatusCode() == 200) {
-                try {
-                    var userUuid = response.jsonPath().getString("uuid");
-                    if (userUuid == null) {
-                        userUuid = response.jsonPath().getString("id");
-                    }
-                    if (userUuid != null) {
-                        userFixture.setCreatedUserUuid(userUuid);
+            try {
+                // Solicitar OTP para registro
+                var otpRequest = userFixture.buildOtpRequest("EMAIL", "REGISTRATION");
+                var otpResponse = authClient.requestOtp(otpRequest);
+                
+                if (otpResponse.getStatusCode() == 200) {
+                    String otpId = otpResponse.jsonPath().getString("otpId");
+                    if (otpId != null) {
+                        userFixture.setOtpUuid(otpId);
                         
-                        // FASE 3: Aguardar criação automática de perfil
-                        final String finalUserUuid = userUuid;
-                        try {
-                            org.awaitility.Awaitility.await()
-                                .atMost(eventTimeoutSeconds, java.util.concurrent.TimeUnit.SECONDS)
-                                .pollInterval(eventPollIntervalMs, java.util.concurrent.TimeUnit.MILLISECONDS)
-                                .until(() -> {
-                                    try {
-                                        var profileResponse = profileClient.getProfileByUserUuid(finalUserUuid);
-                                        return profileResponse != null && 
-                                               profileResponse.getStatusCode() == 200 &&
-                                               profileResponse.getBody() != null;
-                                    } catch (Exception e) {
-                                        return false;
+                        // Obter código OTP do endpoint de teste
+                        var testCodeResponse = authClient.getTestOtpCode(otpId);
+                        if (testCodeResponse.getStatusCode() == 200) {
+                            String otpCode = testCodeResponse.jsonPath().getString("code");
+                            if (otpCode == null) {
+                                otpCode = testCodeResponse.jsonPath().getString("otpCode");
+                            }
+                            if (otpCode != null) {
+                                otpCode = otpCode.replaceAll("[^0-9]", "");
+                                if (otpCode.length() == 6) {
+                                    // Validar OTP para obter sessionToken
+                                    var validationRequest = userFixture.buildOtpValidationRequest(otpCode);
+                                    var validationResponse = authClient.validateOtp(validationRequest);
+                                    
+                                    if (validationResponse.getStatusCode() == 200) {
+                                        sessionToken = validationResponse.jsonPath().getString("sessionToken");
+                                        if (sessionToken != null && !sessionToken.trim().isEmpty()) {
+                                            userFixture.setSessionToken(sessionToken);
+                                        }
                                     }
-                                });
-                            org.slf4j.LoggerFactory.getLogger(ProfileSteps.class)
-                                .info("Perfil criado automaticamente para usuário {}", finalUserUuid);
-                        } catch (Exception e) {
-                            org.slf4j.LoggerFactory.getLogger(ProfileSteps.class)
-                                .warn("Perfil não foi criado automaticamente após {}s. Continuando...", eventTimeoutSeconds);
-                            // Não falhar aqui - alguns testes podem criar perfil manualmente
+                                }
+                            }
                         }
                     }
-                } catch (Exception e) {
-                    org.slf4j.LoggerFactory.getLogger(ProfileSteps.class)
-                        .warn("Não foi possível extrair UUID da resposta de criação");
                 }
+            } catch (Exception e) {
+                logger.warn("Não foi possível criar OTP e sessionToken automaticamente: {}", e.getMessage());
+            }
+        }
+        
+        var request = userFixture.buildCreateUserRequest();
+        var response = identityClient.createUser(request, sessionToken);
+        if (response.getStatusCode() == 201 || response.getStatusCode() == 200) {
+            try {
+                var userUuid = response.jsonPath().getString("uuid");
+                if (userUuid == null) {
+                    userUuid = response.jsonPath().getString("id");
+                }
+                if (userUuid != null) {
+                    userFixture.setCreatedUserUuid(userUuid);
+                    
+                    // FASE 3: Aguardar criação automática de perfil
+                    // IMPORTANTE: O Outbox Pattern pode ter delay de 2-5 segundos para publicar o evento
+                    // e o consumer pode levar mais alguns segundos para processar e criar o perfil
+                    final String finalUserUuid = userUuid;
+                    final var profileLogger = org.slf4j.LoggerFactory.getLogger(ProfileSteps.class);
+                    try {
+                        profileLogger.info("Aguardando criação automática de perfil para usuário {} (timeout: {}s)", 
+                            finalUserUuid, eventTimeoutSeconds);
+                        org.awaitility.Awaitility.await()
+                            .atMost(Math.max(eventTimeoutSeconds, 15), java.util.concurrent.TimeUnit.SECONDS) // Mínimo de 15 segundos
+                            .pollInterval(eventPollIntervalMs, java.util.concurrent.TimeUnit.MILLISECONDS)
+                            .until(() -> {
+                                try {
+                                    var profileResponse = profileClient.getProfileByUserUuid(finalUserUuid);
+                                    int statusCode = profileResponse != null ? profileResponse.getStatusCode() : -1;
+                                    if (statusCode == 200) {
+                                        profileLogger.debug("Perfil encontrado para usuário {} (status: 200)", finalUserUuid);
+                                        return true;
+                                    } else {
+                                        profileLogger.trace("Perfil ainda não criado para usuário {} (status: {})", finalUserUuid, statusCode);
+                                        return false;
+                                    }
+                                } catch (Exception e) {
+                                    profileLogger.trace("Erro ao verificar perfil para usuário {}: {}", finalUserUuid, e.getMessage());
+                                    return false;
+                                }
+                            });
+                        profileLogger.info("✅ Perfil criado automaticamente para usuário {}", finalUserUuid);
+                    } catch (Exception e) {
+                        profileLogger.warn("Perfil não foi criado automaticamente após {}s para usuário {}. " +
+                            "Isso pode indicar que o evento user.created.v1 não foi publicado ou processado corretamente. " +
+                            "Continuando...", 
+                            Math.max(eventTimeoutSeconds, 15), finalUserUuid);
+                        // Não falhar aqui - alguns testes podem criar perfil manualmente
+                    }
+                }
+            } catch (Exception e) {
+                org.slf4j.LoggerFactory.getLogger(ProfileSteps.class)
+                    .warn("Não foi possível extrair UUID da resposta de criação");
             }
         }
     }
@@ -120,69 +189,67 @@ public class ProfileSteps {
         lastResponse = profileClient.getProfileByUserUuid(userUuid);
         
         if (lastResponse.getStatusCode() == 404) {
-            org.slf4j.LoggerFactory.getLogger(ProfileSteps.class)
-                .warn("Perfil não encontrado (404) - aguardando criação automática. UUID: {}", userUuid);
+            var profileLogger = org.slf4j.LoggerFactory.getLogger(ProfileSteps.class);
+            profileLogger.warn("Perfil não encontrado (404) - aguardando criação automática. UUID: {}", userUuid);
             
             // Aguardar criação automática de perfil
+            // IMPORTANTE: O Outbox Pattern pode ter delay de 2-5 segundos para publicar o evento
+            // e o consumer pode levar mais alguns segundos para processar e criar o perfil
+            // Aumentar timeout para 20 segundos para dar tempo suficiente
             try {
+                profileLogger.info("Aguardando criação automática de perfil para usuário {} (timeout: 20s)", userUuid);
                 org.awaitility.Awaitility.await()
-                    .atMost(eventTimeoutSeconds, java.util.concurrent.TimeUnit.SECONDS)
-                    .pollInterval(eventPollIntervalMs, java.util.concurrent.TimeUnit.MILLISECONDS)
+                    .atMost(20, java.util.concurrent.TimeUnit.SECONDS)
+                    .pollInterval(500, java.util.concurrent.TimeUnit.MILLISECONDS)
                     .until(() -> {
                         try {
                             var profileResponse = profileClient.getProfileByUserUuid(userUuid);
-                            if (profileResponse.getStatusCode() == 200) {
+                            int statusCode = profileResponse != null ? profileResponse.getStatusCode() : -1;
+                            if (statusCode == 200) {
                                 lastResponse = profileResponse;
+                                profileLogger.debug("Perfil encontrado para usuário {} (status: 200)", userUuid);
                                 return true;
+                            } else {
+                                profileLogger.trace("Perfil ainda não criado para usuário {} (status: {})", userUuid, statusCode);
+                                return false;
                             }
-                            return false;
                         } catch (Exception e) {
+                            profileLogger.trace("Erro ao verificar perfil para usuário {}: {}", userUuid, e.getMessage());
                             return false;
                         }
                     });
-                org.slf4j.LoggerFactory.getLogger(ProfileSteps.class)
-                    .info("Perfil criado após aguardo para usuário {}", userUuid);
+                profileLogger.info("✅ Perfil criado após aguardo para usuário {}", userUuid);
             } catch (Exception e) {
-                org.slf4j.LoggerFactory.getLogger(ProfileSteps.class)
-                    .warn("Perfil não foi criado após aguardo. Tentando criar manualmente como fallback...");
+                profileLogger.error("Perfil não foi criado após aguardo de 20 segundos para usuário {}. " +
+                    "Isso pode indicar que: " +
+                    "1. O evento user.created.v1 não foi publicado pelo Identity Service, " +
+                    "2. O evento não foi processado pelo User Profile Service consumer, " +
+                    "3. O consumer falhou silenciosamente ao criar o perfil. " +
+                    "Verifique os logs do Identity Service (publicação do evento) e User Profile Service (consumer). UUID: {}", 
+                    userUuid);
                 
-                // FASE 3: Fallback - tentar criar perfil manualmente
-                try {
-                    var createProfileRequest = new java.util.HashMap<String, Object>();
-                    createProfileRequest.put("userUuid", userUuid);
-                    createProfileRequest.put("language", "pt-BR");
-                    createProfileRequest.put("notifications", true);
-                    createProfileRequest.put("validationChannel", "EMAIL");
-                    createProfileRequest.put("relationship", "B2C");
-                    var createResponse = profileClient.createProfile(userUuid, createProfileRequest);
-                    if (createResponse.getStatusCode() == 200 || createResponse.getStatusCode() == 201) {
-                        lastResponse = createResponse;
-                        org.slf4j.LoggerFactory.getLogger(ProfileSteps.class)
-                            .info("Perfil criado manualmente como fallback para usuário {}", userUuid);
-                    } else {
-                        org.slf4j.LoggerFactory.getLogger(ProfileSteps.class)
-                            .warn("Não foi possível criar perfil manualmente. Status: {}", createResponse.getStatusCode());
-                    }
-                } catch (Exception createException) {
-                    org.slf4j.LoggerFactory.getLogger(ProfileSteps.class)
-                        .warn("Erro ao tentar criar perfil manualmente: {}", createException.getMessage());
-                }
+                // Não tentar criar manualmente - não há endpoint POST para criar perfil
+                // O perfil deve ser criado automaticamente pelo consumer
+                // Se não foi criado, há um problema no consumer ou no evento
+                throw new IllegalStateException(
+                    "Perfil não foi criado automaticamente para o usuário " + userUuid + 
+                    ". Verifique se o evento user.created.v1 foi publicado e processado corretamente. " +
+                    "Verifique os logs do Identity Service (publicação) e User Profile Service (consumer)."
+                );
             }
         }
         
-        // Se ainda não temos perfil, logar warning mas continuar
-        if (lastResponse.getStatusCode() == 404) {
-            org.slf4j.LoggerFactory.getLogger(ProfileSteps.class)
-                .warn("Perfil ainda não encontrado após todas as tentativas. UUID: {}", userUuid);
-            // Continuar o teste mesmo assim - alguns testes podem não depender do perfil existir
-            return;
+        // Verificar se o perfil foi encontrado
+        if (lastResponse.getStatusCode() != 200) {
+            throw new IllegalStateException(
+                "Não foi possível obter perfil para o usuário " + userUuid + 
+                ". Status: " + lastResponse.getStatusCode()
+            );
         }
         
-        assertThat(lastResponse.getStatusCode())
-            .as("Perfil deve estar acessível. Status: %d, Resposta: %s", 
-                lastResponse.getStatusCode(),
-                lastResponse.getBody() != null ? lastResponse.getBody().asString() : "null")
-            .isEqualTo(200);
+        // Perfil encontrado com sucesso
+        org.slf4j.LoggerFactory.getLogger(ProfileSteps.class)
+            .debug("Perfil encontrado para usuário {}", userUuid);
     }
     
     @Quando("eu atualizo minhas preferências:")

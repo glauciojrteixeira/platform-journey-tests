@@ -24,11 +24,24 @@ public class ProfileServiceClient {
         return ExecutionContext.getExecutionId();
     }
     
+    /**
+     * Adiciona os headers obrigatórios de correlação e governança.
+     * 
+     * @param spec RequestSpecification do RestAssured
+     * @return RequestSpecification com headers adicionados
+     */
+    private io.restassured.specification.RequestSpecification addRequiredHeaders(io.restassured.specification.RequestSpecification spec) {
+        spec = spec.header("request-caller", "e2e-tests")
+                   .header("request-origin", "direct");
+        return spec;
+    }
+    
     public Response getProfileByUserUuid(String userUuid) {
-        return RestAssured.given()
+        io.restassured.specification.RequestSpecification spec = RestAssured.given()
             .baseUri(getBaseUrl())
-            .header("request-trace-id", getRequestTraceId())
-            .pathParam("userUuid", userUuid)
+            .header("request-trace-id", getRequestTraceId());
+        spec = addRequiredHeaders(spec);
+        return spec.pathParam("userUuid", userUuid)
             .when()
             .get("/api/v1/profile/user/{userUuid}")
             .then()
@@ -37,10 +50,42 @@ public class ProfileServiceClient {
     }
     
     public Response updateProfile(String userUuid, Object request) {
-        // Primeiro buscar o perfil para obter o UUID do perfil
-        Response profileResponse = getProfileByUserUuid(userUuid);
-        if (profileResponse.getStatusCode() != 200) {
-            return profileResponse; // Retornar erro se perfil não existe
+        // Aguardar até 5 segundos pela criação do perfil (pode ser assíncrono)
+        Response profileResponse = null;
+        int maxAttempts = 10;
+        int attempt = 0;
+        
+        while (attempt < maxAttempts) {
+            profileResponse = getProfileByUserUuid(userUuid);
+            if (profileResponse.getStatusCode() == 200) {
+                break; // Perfil encontrado
+            }
+            
+            // Se for 404, aguardar um pouco e tentar novamente (perfil pode estar sendo criado)
+            if (profileResponse.getStatusCode() == 404) {
+                try {
+                    Thread.sleep(500); // Aguardar 500ms antes de tentar novamente
+                } catch (InterruptedException e) {
+                    Thread.currentThread().interrupt();
+                    break;
+                }
+                attempt++;
+            } else {
+                // Outro erro (não 404) - retornar imediatamente
+                return profileResponse;
+            }
+        }
+        
+        // Se após todas as tentativas o perfil ainda não existe, retornar 404
+        if (profileResponse == null || profileResponse.getStatusCode() != 200) {
+            return profileResponse != null ? profileResponse : 
+                RestAssured.given()
+                    .baseUri(getBaseUrl())
+                    .when()
+                    .get("/api/v1/profile/user/" + userUuid)
+                    .then()
+                    .extract()
+                    .response();
         }
         
         // Extrair UUID do perfil da resposta
@@ -49,11 +94,24 @@ public class ProfileServiceClient {
             profileUuid = profileResponse.jsonPath().getString("id");
         }
         
-        return RestAssured.given()
+        if (profileUuid == null) {
+            // Se não conseguiu extrair UUID, retornar erro
+            return RestAssured.given()
+                .baseUri(getBaseUrl())
+                .when()
+                .get("/api/v1/profile/user/" + userUuid)
+                .then()
+                .statusCode(404)
+                .extract()
+                .response();
+        }
+        
+        io.restassured.specification.RequestSpecification spec = RestAssured.given()
             .baseUri(getBaseUrl())
             .contentType(io.restassured.http.ContentType.JSON)
-            .header("request-trace-id", getRequestTraceId())
-            .pathParam("uuid", profileUuid)
+            .header("request-trace-id", getRequestTraceId());
+        spec = addRequiredHeaders(spec);
+        return spec.pathParam("uuid", profileUuid)
             .body(request)
             .when()
             .put("/api/v1/profile/{uuid}")
@@ -70,11 +128,12 @@ public class ProfileServiceClient {
      * @return Resposta HTTP
      */
     public Response createProfile(String userUuid, Object request) {
-        return RestAssured.given()
+        io.restassured.specification.RequestSpecification spec = RestAssured.given()
             .baseUri(getBaseUrl())
             .contentType(io.restassured.http.ContentType.JSON)
-            .header("request-trace-id", getRequestTraceId())
-            .body(request)
+            .header("request-trace-id", getRequestTraceId());
+        spec = addRequiredHeaders(spec);
+        return spec.body(request)
             .when()
             .post("/api/v1/profile")
             .then()

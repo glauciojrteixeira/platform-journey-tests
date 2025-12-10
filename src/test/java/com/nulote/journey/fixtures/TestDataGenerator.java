@@ -138,6 +138,29 @@ public class TestDataGenerator {
     }
     
     /**
+     * Valida se um CPF tem dígitos verificadores válidos.
+     * 
+     * @param cpf CPF a ser validado (11 dígitos)
+     * @return true se o CPF tem dígitos verificadores válidos, false caso contrário
+     */
+    public static boolean isValidCpf(String cpf) {
+        if (cpf == null || cpf.length() != 11 || !cpf.matches("\\d+")) {
+            return false;
+        }
+        
+        // Extrair base (9 primeiros dígitos) e dígitos verificadores (2 últimos)
+        String base = cpf.substring(0, 9);
+        String providedChecksum = cpf.substring(9, 11);
+        
+        // Calcular dígitos verificadores corretos
+        String calculatedCpf = calculateCpfChecksum(base);
+        String calculatedChecksum = calculatedCpf.substring(9, 11);
+        
+        // Comparar dígitos verificadores
+        return providedChecksum.equals(calculatedChecksum);
+    }
+    
+    /**
      * Limpa o cache de CPFs usados. Útil para testes ou reset entre execuções.
      */
     public static void clearUsedCpfs() {

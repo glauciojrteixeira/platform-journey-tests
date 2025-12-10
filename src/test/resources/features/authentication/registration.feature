@@ -8,7 +8,8 @@ Feature: Registro e Onboarding de Comprador Ocasional
     Given a infraestrutura de testes está configurada
     And os microserviços estão rodando
 
-  # Cenário simplificado sem OTP (OTP não está implementado)
+  # Cenário simplificado sem OTP - NÃO MAIS SUPORTADO: API agora exige OTP obrigatório
+  @not_implemented @otp_required
   Scenario: Registro bem-sucedido sem OTP
     Given que estou na tela de registro
     When eu escolho registro com credenciais próprias
@@ -74,9 +75,11 @@ Feature: Registro e Onboarding de Comprador Ocasional
       | email      | email-invalido           |
       | telefone   | +5511999998888           |
     And eu envio os dados para criar identidade
-    Then o registro deve falhar com status 400
-    And o erro deve ser "INVALID_EMAIL_FORMAT"
-    And a mensagem de erro deve conter "formato de email inválido"
+    # Nota: Como a API agora exige OTP antes de criar usuário, a falha ocorre na solicitação de OTP
+    # quando o email é inválido, não na criação do usuário
+    Then a solicitação de OTP deve falhar com status 400
+    # A API retorna código de erro de validação genérico quando email é inválido
+    And a mensagem de erro deve conter "Email must be valid"
     And nenhuma identidade deve ser criada
 
   # Cenário marcado como não implementado - OTP não está disponível

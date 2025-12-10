@@ -42,15 +42,26 @@ public class RabbitMQHelper {
     
     @PostConstruct
     public void init() throws IOException, TimeoutException {
-        ConnectionFactory factory = new ConnectionFactory();
-        factory.setHost(host);
-        factory.setPort(port);
-        factory.setUsername(username);
-        factory.setPassword(password);
-        
-        connection = factory.newConnection();
-        channel = connection.createChannel();
-        objectMapper = new ObjectMapper();
+        var logger = org.slf4j.LoggerFactory.getLogger(RabbitMQHelper.class);
+        try {
+            ConnectionFactory factory = new ConnectionFactory();
+            factory.setHost(host);
+            factory.setPort(port);
+            factory.setUsername(username);
+            factory.setPassword(password);
+            
+            // Configurar timeout de conexão para evitar travamentos
+            factory.setConnectionTimeout(5000); // 5 segundos
+            factory.setNetworkRecoveryInterval(5000); // 5 segundos
+            
+            connection = factory.newConnection();
+            channel = connection.createChannel();
+            objectMapper = new ObjectMapper();
+            logger.debug("Conexão RabbitMQ estabelecida com sucesso");
+        } catch (Exception e) {
+            logger.warn("Erro ao inicializar conexão RabbitMQ: {}", e.getMessage());
+            throw e;
+        }
     }
     
     @PreDestroy
@@ -72,8 +83,10 @@ public class RabbitMQHelper {
      */
     private String determineQueueName(String eventType) {
         // Mapear eventType para nome de fila seguindo padrão do projeto
+        // O evento otp.sent é publicado no exchange auth.events e consumido por auth.otp-sent.queue
         switch (eventType) {
             case "otp.sent":
+                // Tentar primeiro a fila do auth-service, depois a transactional
                 return "auth.otp-sent.queue";
             case "otp.validated":
                 return "auth.otp-validated.queue";
@@ -111,33 +124,74 @@ public class RabbitMQHelper {
         try {
             // Verificar se canal está aberto
             if (channel == null || !channel.isOpen()) {
-                logger.warn("Canal RabbitMQ não está aberto. Tentando reconectar...");
-                init();
+                logger.debug("Canal RabbitMQ não está aberto. Tentando reconectar...");
+                try {
+                    init();
+                } catch (Exception e) {
+                    logger.warn("Erro ao reconectar ao RabbitMQ: {}", e.getMessage());
+                    return null;
+                }
             }
             
             // Determinar nome da fila seguindo padrão do projeto
             String finalQueueName = queueName != null ? queueName : determineQueueName(eventType);
             logger.debug("Consumindo evento {} da fila {}", eventType, finalQueueName);
             
-            // Declarar fila caso não exista (modo passivo)
-            // As filas devem ser criadas pelo RabbitConfig do microserviço
-            try {
-                channel.queueDeclarePassive(finalQueueName);
-            } catch (IOException e) {
-                logger.warn("Fila {} não existe. Tentando criar em modo não durável para testes.", finalQueueName);
-                // Em ambiente de teste, criar fila não durável se não existir
-                channel.queueDeclare(finalQueueName, false, false, false, null);
+            // Para otp.sent, tentar ambas as filas possíveis
+            // IMPORTANTE: Como há consumidores ativos nas filas principais, as mensagens são consumidas rapidamente
+            // Vamos tentar consumir de ambas as filas, mas pode ser que a mensagem já tenha sido consumida
+            if ("otp.sent".equals(eventType) && queueName == null) {
+                // Tentar primeiro auth.otp-sent.queue
+                Event event = tryConsumeFromQueue(eventType, "auth.otp-sent.queue", logger);
+                if (event != null) {
+                    return event;
+                }
+                // Se não encontrou, tentar transactional.auth-otp-sent.queue
+                logger.debug("Nenhuma mensagem encontrada em auth.otp-sent.queue, tentando transactional.auth-otp-sent.queue");
+                event = tryConsumeFromQueue(eventType, "transactional.auth-otp-sent.queue", logger);
+                if (event != null) {
+                    return event;
+                }
+                // Se ainda não encontrou, pode ser que a mensagem já foi consumida pelos consumidores ativos
+                // Nesse caso, vamos verificar se podemos obter do banco de dados ou logs
+                // Usar DEBUG ao invés de WARN pois isso é comportamento esperado durante polling
+                logger.debug("Nenhuma mensagem encontrada nas filas. A mensagem pode ter sido consumida pelos consumidores ativos.");
+                return null;
             }
             
-            GetResponse response = channel.basicGet(finalQueueName, false);
+            return tryConsumeFromQueue(eventType, finalQueueName, logger);
+        } catch (Exception e) {
+            logger.error("Erro ao consumir mensagem do RabbitMQ: {}", e.getMessage(), e);
+            // Em ambiente de teste, não falhar o teste se RabbitMQ não estiver disponível
+            // Apenas logar o erro
+            return null;
+        }
+    }
+    
+    /**
+     * Tenta consumir uma mensagem de uma fila específica
+     */
+    private Event tryConsumeFromQueue(String eventType, String queueName, org.slf4j.Logger logger) throws IOException {
+        // Declarar fila caso não exista (modo passivo)
+        // As filas devem ser criadas pelo RabbitConfig do microserviço
+        try {
+            channel.queueDeclarePassive(queueName);
+        } catch (IOException e) {
+            // Usar trace ao invés de debug para reduzir verbosidade
+            logger.trace("Fila {} não existe ou não está acessível: {}", queueName, e.getMessage());
+            return null;
+        }
+        
+        GetResponse response = channel.basicGet(queueName, false);
             
             if (response == null) {
-                logger.debug("Nenhuma mensagem encontrada na fila {}", finalQueueName);
+                // Usar trace ao invés de debug para reduzir verbosidade durante polling
+                logger.trace("Nenhuma mensagem encontrada na fila {}", queueName);
                 return null;
             }
             
             String messageBody = new String(response.getBody(), StandardCharsets.UTF_8);
-            logger.debug("Mensagem recebida do RabbitMQ ({} bytes): {}", messageBody.length(), messageBody.substring(0, Math.min(200, messageBody.length())));
+            logger.debug("Mensagem recebida do RabbitMQ da fila {} ({} bytes): {}", queueName, messageBody.length(), messageBody.substring(0, Math.min(200, messageBody.length())));
             
             // Capturar headers da mensagem
             Map<String, Object> headers = response.getProps().getHeaders();
@@ -184,7 +238,7 @@ public class RabbitMQHelper {
                 channel.basicAck(response.getEnvelope().getDeliveryTag(), false);
                 lastConsumedMessages.put(eventType, event);
                 
-                logger.info("✅ Evento {} consumido com sucesso da fila {}", eventType, finalQueueName);
+                logger.info("✅ Evento {} consumido com sucesso da fila {}", eventType, queueName);
                 return event;
             } else {
                 // Rejeitar e reenfileirar se não for o tipo esperado
@@ -193,12 +247,6 @@ public class RabbitMQHelper {
                 channel.basicNack(response.getEnvelope().getDeliveryTag(), false, true);
                 return null;
             }
-        } catch (IOException | TimeoutException e) {
-            logger.error("Erro ao consumir mensagem do RabbitMQ: {}", e.getMessage(), e);
-            // Em ambiente de teste, não falhar o teste se RabbitMQ não estiver disponível
-            // Apenas logar o erro
-            return null;
-        }
     }
     
     /**
