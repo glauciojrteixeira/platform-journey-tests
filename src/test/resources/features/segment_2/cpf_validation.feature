@@ -1,4 +1,4 @@
-@not_implemented @segment_2 @j2.1 @identity @validation @high @e2e
+@not_implemented @vs-identity @segment_2 @j2.1 @identity @validation @high @e2e
 Feature: Registro com Validação de CPF
   Como um arrematador profissional
   Eu quero me registrar com validação de CPF

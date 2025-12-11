@@ -54,7 +54,39 @@ public class AuthenticationSteps {
     
     @Dado("que estou na tela de registro")
     public void que_estou_na_tela_de_registro() {
-        // Setup inicial se necessário
+        // CORREÇÃO 1: Configurar dados básicos para evitar erros de validação
+        // Garantir que userData tenha pelo menos email para solicitações de OTP
+        var logger = org.slf4j.LoggerFactory.getLogger(AuthenticationSteps.class);
+        logger.info("🔧 [TROUBLESHOOTING] Iniciando step 'que estou na tela de registro'");
+        
+        var userData = userFixture.getUserData();
+        logger.debug("🔧 [TROUBLESHOOTING] userData atual: {}", userData != null ? userData.keySet() : "null");
+        
+        if (userData == null) {
+            userData = new java.util.HashMap<>();
+            logger.info("🔧 [TROUBLESHOOTING] userData era null, criado novo HashMap");
+        }
+        
+        // Se não tiver email, gerar um único
+        Object emailObj = userData.get("email");
+        if (emailObj == null) {
+            String email = com.nulote.journey.fixtures.TestDataGenerator.generateUniqueEmail();
+            userData.put("email", email);
+            logger.info("🔧 [TROUBLESHOOTING] Email gerado e adicionado ao userData: {}", email);
+        } else {
+            logger.info("🔧 [TROUBLESHOOTING] Email já presente no userData: {}", emailObj);
+        }
+        
+        // Se não tiver telefone, gerar um único (pode ser necessário para WhatsApp)
+        if (userData.get("telefone") == null && userData.get("phone") == null) {
+            String telefone = com.nulote.journey.fixtures.TestDataGenerator.generateUniquePhone();
+            userData.put("telefone", telefone);
+            logger.debug("🔧 [TROUBLESHOOTING] Telefone gerado e adicionado ao userData: {}", telefone);
+        }
+        
+        userFixture.setUserData(userData);
+        logger.info("🔧 [TROUBLESHOOTING] userData final configurado com {} campos: {}", 
+            userData.size(), userData.keySet());
     }
     
     @Quando("eu escolho registro com credenciais próprias")
@@ -161,16 +193,89 @@ public class AuthenticationSteps {
         var logger = org.slf4j.LoggerFactory.getLogger(AuthenticationSteps.class);
         logger.debug("Solicitando OTP. Evento será publicado na fila auth.otp-sent.queue");
         
+        // CORREÇÃO 1: Garantir que dados básicos estejam configurados antes de construir request
+        var userData = userFixture.getUserData();
+        if (userData == null) {
+            userData = new java.util.HashMap<>();
+            userFixture.setUserData(userData);
+            userData = userFixture.getUserData(); // Obter referência atualizada
+            logger.debug("🔧 [TROUBLESHOOTING] userData inicializado como novo HashMap");
+        } else {
+            // CORREÇÃO: Garantir que userData é mutável (DataTables podem retornar Maps imutáveis)
+            if (!(userData instanceof java.util.HashMap)) {
+                logger.warn("⚠️ [TROUBLESHOOTING] userData não é mutável, criando cópia mutável");
+                userData = new java.util.HashMap<>(userData);
+                userFixture.setUserData(userData);
+                userData = userFixture.getUserData(); // Obter referência atualizada
+            }
+        }
+        
+        // Se channel for EMAIL, garantir que email está configurado
+        if ("EMAIL".equals(channel)) {
+            Object emailObj = userData.get("email");
+            String email = (emailObj != null) ? emailObj.toString().trim() : null;
+            if (email == null || email.isEmpty()) {
+                email = com.nulote.journey.fixtures.TestDataGenerator.generateUniqueEmail();
+                userData.put("email", email);
+                logger.info("🔧 [TROUBLESHOOTING] Email gerado automaticamente no step: {}", email);
+            } else {
+                logger.debug("🔧 [TROUBLESHOOTING] Email já presente no userData: {}", email);
+            }
+        }
+        
         var request = userFixture.buildOtpRequest(channel, purpose);
+        logger.info("OTP Request construído com {} campos: {}", request.size(), request.keySet());
+        
+        // Validação adicional: garantir que email está no request se channel for EMAIL
+        if ("EMAIL".equals(channel)) {
+            if (!request.containsKey("email")) {
+                logger.error("❌ [TROUBLESHOOTING] ERRO CRÍTICO: Email não encontrado no request após buildOtpRequest!");
+                logger.error("❌ [TROUBLESHOOTING] Request completo: {}", request);
+                logger.error("❌ [TROUBLESHOOTING] userData atual: {}", userFixture.getUserData());
+                throw new IllegalStateException("Email deve estar presente no request para channel EMAIL");
+            } else {
+                Object emailInRequest = request.get("email");
+                logger.info("✅ [TROUBLESHOOTING] Email confirmado no request: {} (tipo: {})", 
+                    emailInRequest, emailInRequest != null ? emailInRequest.getClass().getSimpleName() : "null");
+            }
+        }
+        
         AllureHelper.attachText("OTP Request: " + request.toString());
         
+        logger.info("🔧 [TROUBLESHOOTING] Enviando requisição OTP para Auth Service...");
+        
+        // CORREÇÃO: Adicionar delay antes de requisições OTP para evitar rate limiting
+        // quando há múltiplas requisições em sequência
+        // Delay aumentado para 500ms para reduzir chance de rate limiting
+        try {
+            Thread.sleep(500); // 500ms de delay para evitar rate limiting em requisições rápidas
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+            logger.warn("⚠️ [TROUBLESHOOTING] Delay interrompido antes de solicitar OTP");
+        }
+        
         lastResponse = authClient.requestOtp(request);
+        
+        int statusCode = lastResponse.getStatusCode();
+        logger.info("🔧 [TROUBLESHOOTING] Resposta OTP recebida - Status: {}", statusCode);
+        
+        if (statusCode != 200) {
+            String responseBody = lastResponse.getBody() != null ? lastResponse.getBody().asString() : "null";
+            logger.error("❌ [TROUBLESHOOTING] Resposta com erro - Status: {}, Body: {}", statusCode, responseBody);
+            
+            // Se for rate limiting, sugerir aumentar o delay
+            if (statusCode == 429) {
+                logger.warn("⚠️ [TROUBLESHOOTING] Rate limiting detectado. Considere aumentar o delay entre requisições OTP.");
+            }
+        } else {
+            logger.info("✅ [TROUBLESHOOTING] Resposta OTP bem-sucedida (200)");
+        }
+        
         AllureHelper.attachHttpResponse(lastResponse, "solicitar OTP");
         
         // Não falhar imediatamente - permitir que testes específicos tratem diferentes status codes
         // Rate limiting pode retornar 429 ou 500 dependendo da implementação
-        int statusCode = lastResponse.getStatusCode();
-        logger.debug("OTP request retornou status: {}", statusCode);
+        logger.debug("🔧 [TROUBLESHOOTING] OTP request retornou status: {}", statusCode);
         
         // Extrair otpId da resposta apenas se for sucesso
         if (statusCode == 200) {
@@ -2168,10 +2273,67 @@ public class AuthenticationSteps {
     
     @Então("a solicitação de OTP deve retornar status {int}")
     public void a_solicitacao_de_otp_deve_retornar_status(int statusCode) {
-        assertThat(lastResponse.getStatusCode())
+        var logger = org.slf4j.LoggerFactory.getLogger(AuthenticationSteps.class);
+        int actualStatusCode = lastResponse.getStatusCode();
+        String responseBody = lastResponse.getBody() != null ? lastResponse.getBody().asString() : "null";
+        
+        logger.info("🔧 [TROUBLESHOOTING] Validando status da resposta OTP - Esperado: {}, Atual: {}", 
+            statusCode, actualStatusCode);
+        
+        // Tratamento especial para rate limiting (429)
+        // Se esperamos 200 mas recebemos 429, isso pode ser aceitável em alguns cenários
+        // (ex: quando há muitas requisições em sequência)
+        if (statusCode == 200 && actualStatusCode == 429) {
+            try {
+                // Verificar se a resposta indica rate limiting
+                boolean isRateLimit = responseBody.contains("Rate limit") || 
+                                     responseBody.contains("rate limit") ||
+                                     responseBody.contains("AU-A-INF003");
+                
+                if (isRateLimit) {
+                    logger.warn("⚠️ [TROUBLESHOOTING] Rate limiting detectado (429) quando esperávamos 200");
+                    logger.warn("⚠️ [TROUBLESHOOTING] Isso é esperado quando há muitas requisições OTP em sequência");
+                    logger.warn("⚠️ [TROUBLESHOOTING] Para evitar este erro:");
+                    logger.warn("   - Adicione delays entre requisições OTP");
+                    logger.warn("   - Execute os testes em ambiente com rate limit mais alto");
+                    logger.warn("   - Ou marque o cenário como aceitando 429 em alguns casos");
+                    
+                    // Em alguns cenários de edge case, rate limiting pode ser aceitável
+                    // Mas por padrão, vamos falhar para que o desenvolvedor saiba que precisa ajustar
+                    logger.error("❌ [TROUBLESHOOTING] Rate limiting bloqueou a requisição. Ajuste o teste ou aguarde o rate limit resetar.");
+                }
+            } catch (Exception e) {
+                logger.debug("Não foi possível analisar resposta para rate limiting", e);
+            }
+        }
+        
+        if (actualStatusCode != statusCode) {
+            logger.error("❌ [TROUBLESHOOTING] Status code não corresponde ao esperado!");
+            logger.error("❌ [TROUBLESHOOTING] Status esperado: {}", statusCode);
+            logger.error("❌ [TROUBLESHOOTING] Status recebido: {}", actualStatusCode);
+            logger.error("❌ [TROUBLESHOOTING] Corpo da resposta: {}", responseBody);
+            
+            // Tentar extrair informações de erro da resposta
+            try {
+                if (responseBody.contains("errorCode")) {
+                    logger.error("❌ [TROUBLESHOOTING] Resposta contém errorCode - verificar detalhes acima");
+                }
+                if (responseBody.contains("Validation failed")) {
+                    logger.error("❌ [TROUBLESHOOTING] Erro de validação detectado - verificar campos obrigatórios");
+                }
+                if (responseBody.contains("Rate limit") || responseBody.contains("rate limit")) {
+                    logger.error("❌ [TROUBLESHOOTING] Rate limiting detectado - adicionar delay entre requisições ou aguardar reset");
+                }
+            } catch (Exception e) {
+                logger.debug("Não foi possível analisar resposta para troubleshooting", e);
+            }
+        } else {
+            logger.info("✅ [TROUBLESHOOTING] Status code válido: {}", actualStatusCode);
+        }
+        
+        assertThat(actualStatusCode)
             .as("Solicitação de OTP deve retornar status %d. Resposta: %s", 
-                statusCode,
-                lastResponse.getBody() != null ? lastResponse.getBody().asString() : "null")
+                statusCode, responseBody)
             .isEqualTo(statusCode);
     }
     
@@ -2805,6 +2967,30 @@ public class AuthenticationSteps {
             .as("Redefinição de senha deve retornar 200. Resposta: %s", 
                 lastResponse.getBody() != null ? lastResponse.getBody().asString() : "null")
             .isEqualTo(200);
+    }
+    
+    @Dado("que existe um usuário com email do usuário criado e senha do usuário criado")
+    public void que_existe_um_usuario_com_email_do_usuario_criado_e_senha_do_usuario_criado() {
+        // Este step assume que o usuário já foi criado no Background
+        // Apenas valida que o usuário existe usando os dados do userFixture
+        var logger = org.slf4j.LoggerFactory.getLogger(AuthenticationSteps.class);
+        var userData = userFixture.getUserData();
+        if (userData == null || userData.get("email") == null) {
+            throw new IllegalStateException("Usuário não foi criado ainda. Execute 'que crio um usuário com esses dados' primeiro.");
+        }
+        logger.info("✅ Usuário existe com email: {}", userData.get("email"));
+    }
+    
+    @Dado("que existe um usuário com email do usuário criado")
+    public void que_existe_um_usuario_com_email_do_usuario_criado() {
+        // Este step assume que o usuário já foi criado no Background
+        // Apenas valida que o usuário existe usando os dados do userFixture
+        var logger = org.slf4j.LoggerFactory.getLogger(AuthenticationSteps.class);
+        var userData = userFixture.getUserData();
+        if (userData == null || userData.get("email") == null) {
+            throw new IllegalStateException("Usuário não foi criado ainda. Execute 'que crio um usuário com esses dados' primeiro.");
+        }
+        logger.info("✅ Usuário existe com email: {}", userData.get("email"));
     }
 }
 

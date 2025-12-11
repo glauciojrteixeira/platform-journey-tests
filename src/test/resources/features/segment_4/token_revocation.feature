@@ -1,4 +1,4 @@
-@not_implemented @segment_4 @j4.8 @b2b @security @enterprise @high @e2e @may_require_auth
+@not_implemented @vs-identity @segment_4 @j4.8 @b2b @security @enterprise @high @e2e @may_require_auth
 Feature: Revogação de Tokens Ativos
   Como admin técnico de uma plataforma B2B
   Eu quero revogar tokens JWT específicos ou todos

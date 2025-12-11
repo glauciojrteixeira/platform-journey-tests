@@ -1,4 +1,4 @@
-@segment_1 @j1.5 @identity @critical @e2e
+@vs-identity @segment_1 @j1.5 @identity @critical @e2e
 Feature: Alteração de Dados Pessoais
   Como um comprador ocasional
   Eu quero alterar meus dados pessoais críticos

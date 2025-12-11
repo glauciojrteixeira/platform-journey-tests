@@ -1,4 +1,4 @@
-@not_implemented @segment_3 @j3.5 @b2b @admin @high @e2e @may_require_auth @otp_required
+@not_implemented @vs-identity @segment_3 @j3.5 @b2b @admin @high @e2e @may_require_auth @otp_required
 Feature: Remoção de Usuário da PJ
   Como um admin de uma entidade jurídica
   Eu quero remover usuário da minha empresa

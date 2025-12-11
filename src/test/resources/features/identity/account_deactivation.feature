@@ -1,4 +1,4 @@
-@segment_1 @j1.8 @identity @lgpd @critical @e2e
+@vs-identity @segment_1 @j1.8 @identity @lgpd @critical @e2e
 Feature: Desativação de Conta
   Como um comprador ocasional
   Eu quero desativar minha conta

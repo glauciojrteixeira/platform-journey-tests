@@ -1,4 +1,4 @@
-@not_implemented @segment_2 @j2.7 @identity @upgrade @high @e2e
+@not_implemented @vs-identity @segment_2 @j2.7 @identity @upgrade @high @e2e
 Feature: Upgrade para Segmento Profissional
   Como um comprador ocasional
   Eu quero fazer upgrade para segmento profissional

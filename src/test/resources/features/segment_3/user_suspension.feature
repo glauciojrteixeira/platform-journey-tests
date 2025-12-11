@@ -1,4 +1,4 @@
-@not_implemented @segment_3 @j3.4 @b2b @admin @high @e2e @may_require_auth
+@not_implemented @vs-identity @segment_3 @j3.4 @b2b @admin @high @e2e @may_require_auth
 Feature: Suspensão de Usuário
   Como um admin de uma entidade jurídica
   Eu quero suspender acesso de usuários vinculados

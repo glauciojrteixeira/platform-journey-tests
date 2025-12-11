@@ -19,6 +19,11 @@ e2e:
   # em ambientes não-PROD, evitando custos e permitindo testes sem dependências externas
   simulate-provider:
     enabled: true  # Default: true para local/sit/uat, false para prod
+  # Configuração de retry para rate limiting
+  rate-limit-retry:
+    max-attempts: 3  # Número máximo de tentativas quando receber 429
+    initial-delay-ms: 2000  # Delay inicial em milissegundos (backoff exponencial: 2s, 4s, 8s)
+    enabled: true  # Habilitar retry automático para rate limiting
   services:
     identity-url: http://localhost:8084
     auth-url: http://localhost:8080

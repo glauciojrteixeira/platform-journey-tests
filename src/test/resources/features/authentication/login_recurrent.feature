@@ -1,4 +1,4 @@
-@implemented @segment_1 @j1.3 @authentication @critical @e2e
+@implemented @vs-identity @segment_1 @j1.3 @authentication @critical @e2e
 Feature: Login Recorrente
   Como um comprador ocasional
   Eu quero fazer login recorrente na plataforma

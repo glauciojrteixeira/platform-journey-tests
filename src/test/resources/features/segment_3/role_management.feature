@@ -1,4 +1,4 @@
-@not_implemented @segment_3 @j3.3 @b2b @roles @high @e2e @may_require_auth
+@not_implemented @vs-identity @segment_3 @j3.3 @b2b @roles @high @e2e @may_require_auth
 Feature: Alteração de Role de Usuário
   Como um admin de uma entidade jurídica
   Eu quero alterar roles/permissões de usuários vinculados

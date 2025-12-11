@@ -1,4 +1,4 @@
-@not_implemented @segment_4 @j4.6 @b2b @sso @enterprise @medium @e2e @may_require_auth
+@not_implemented @vs-identity @segment_4 @j4.6 @b2b @sso @enterprise @medium @e2e @may_require_auth
 Feature: Gestão de Sessões SSO
   Como admin técnico de uma plataforma B2B
   Eu quero gerenciar sessões SSO ativas

@@ -1,4 +1,4 @@
-@implemented @transversal @simulate-provider @e2e @vs-identity
+@implemented @vs-identity @transversal @segment_1 @simulate-provider @critical @e2e
 Feature: Simulação de Providers
   Como um testador E2E
   Eu quero validar que o header simulate-provider está funcionando corretamente

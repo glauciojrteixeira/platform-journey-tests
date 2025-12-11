@@ -1,4 +1,4 @@
-@not_implemented @segment_4 @j4.3 @b2b @sso @enterprise @critical @e2e
+@not_implemented @vs-identity @segment_4 @j4.3 @b2b @sso @enterprise @critical @e2e
 Feature: Login via SSO B2B Enterprise
   Como um usuário técnico de uma plataforma parceira
   Eu quero fazer login via SSO corporativo

@@ -1,4 +1,4 @@
-@not_implemented @segment_2 @j2.2 @security @mfa @high @e2e @otp_required
+@not_implemented @vs-identity @segment_2 @j2.2 @security @mfa @high @e2e @otp_required
 Feature: Ativação de MFA
   Como um arrematador profissional
   Eu quero ativar MFA na minha conta

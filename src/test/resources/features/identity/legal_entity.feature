@@ -1,5 +1,5 @@
 # Entidade jurídica pode requerer autenticação para alguns endpoints
-@implemented @segment_3 @j3.1 @legal_entity @b2b @high @e2e @partial
+@implemented @vs-identity @segment_3 @j3.1 @legal_entity @b2b @high @e2e @partial
 Feature: Registro de Entidade Jurídica para Revendedores
   Como representante legal de uma empresa
   Eu quero registrar minha empresa na plataforma

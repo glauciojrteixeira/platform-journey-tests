@@ -1,4 +1,4 @@
-@not_implemented @transversal @jt.1 @authentication @token @medium @e2e
+@not_implemented @vs-identity @transversal @segment_1 @jt.1 @authentication @token @medium @e2e
 Feature: Refresh Token
   Como um usuário autenticado
   Eu quero renovar meu JWT sem reautenticação completa

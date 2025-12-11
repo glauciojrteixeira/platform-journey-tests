@@ -1,4 +1,4 @@
-@segment_1 @j1.7 @password @security @high @e2e
+@vs-identity @segment_1 @j1.7 @password @security @high @e2e
 Feature: Alteração de Senha
   Como um comprador ocasional
   Eu quero alterar minha senha

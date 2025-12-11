@@ -1,4 +1,4 @@
-@not_implemented @segment_2 @j2.4 @audit @history @medium @e2e
+@not_implemented @vs-identity @segment_2 @j2.4 @audit @history @medium @e2e
 Feature: Histórico de Logins e Acessos
   Como um arrematador profissional
   Eu quero consultar meu histórico de acessos

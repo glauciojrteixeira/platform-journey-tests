@@ -1,4 +1,4 @@
-@implemented @segment_1 @j1.4 @profile @medium @e2e
+@implemented @vs-identity @segment_1 @j1.4 @profile @medium @e2e
 Feature: Atualização de Perfil
   Como um comprador ocasional
   Eu quero atualizar minhas preferências de perfil

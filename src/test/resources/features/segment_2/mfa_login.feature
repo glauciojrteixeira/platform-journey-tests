@@ -1,4 +1,4 @@
-@not_implemented @segment_2 @j2.3 @authentication @mfa @critical @e2e @otp_required
+@not_implemented @vs-identity @segment_2 @j2.3 @authentication @mfa @critical @e2e @otp_required
 Feature: Login com MFA
   Como um arrematador profissional com MFA ativado
   Eu quero fazer login com código MFA

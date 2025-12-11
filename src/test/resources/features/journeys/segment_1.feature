@@ -1,4 +1,4 @@
-@implemented @segment_1 @b2c @pf @journey @critical @e2e
+@implemented @vs-identity @segment_1 @b2c @pf @journey @critical @e2e
 Feature: Jornada Completa - Segmento 1 - Compradores Ocasionais
   Como um comprador ocasional
   Eu quero completar minha jornada de registro e primeiro acesso

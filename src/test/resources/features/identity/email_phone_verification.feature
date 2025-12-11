@@ -1,4 +1,4 @@
-@not_implemented @segment_1 @j1.11 @identity @verification @medium @e2e @otp_required
+@not_implemented @vs-identity @segment_1 @j1.11 @identity @verification @medium @e2e @otp_required
 Feature: Verificação de Email e Telefone
   Como um comprador ocasional
   Eu quero verificar meu email e telefone cadastrados

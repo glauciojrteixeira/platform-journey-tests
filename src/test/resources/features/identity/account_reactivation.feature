@@ -1,4 +1,4 @@
-@segment_1 @j1.9 @identity @lgpd @medium @e2e
+@vs-identity @segment_1 @j1.9 @identity @lgpd @medium @e2e
 Feature: Reativação de Conta
   Como um usuário com conta desativada
   Eu quero reativar minha conta

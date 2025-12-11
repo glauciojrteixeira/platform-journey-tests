@@ -15,6 +15,7 @@ public class E2EConfiguration {
     private Services services;
     private int timeout;
     private SimulateProvider simulateProvider = new SimulateProvider();
+    private RateLimitRetry rateLimitRetry = new RateLimitRetry();
     
     public String getEnvironment() {
         return environment;
@@ -48,6 +49,14 @@ public class E2EConfiguration {
         this.simulateProvider = simulateProvider;
     }
     
+    public RateLimitRetry getRateLimitRetry() {
+        return rateLimitRetry;
+    }
+    
+    public void setRateLimitRetry(RateLimitRetry rateLimitRetry) {
+        this.rateLimitRetry = rateLimitRetry;
+    }
+    
     /**
      * Determina se o header simulate-provider deve ser adicionado nas requisições.
      * 
@@ -77,6 +86,9 @@ public class E2EConfiguration {
         private String identityUrl;
         private String authUrl;
         private String profileUrl;
+        private String transactionalMessagingUrl;
+        private String deliveryTrackerUrl;
+        private String auditComplianceUrl;
         
         public String getIdentityUrl() {
             return identityUrl;
@@ -101,6 +113,30 @@ public class E2EConfiguration {
         public void setProfileUrl(String profileUrl) {
             this.profileUrl = profileUrl;
         }
+        
+        public String getTransactionalMessagingUrl() {
+            return transactionalMessagingUrl;
+        }
+        
+        public void setTransactionalMessagingUrl(String transactionalMessagingUrl) {
+            this.transactionalMessagingUrl = transactionalMessagingUrl;
+        }
+        
+        public String getDeliveryTrackerUrl() {
+            return deliveryTrackerUrl;
+        }
+        
+        public void setDeliveryTrackerUrl(String deliveryTrackerUrl) {
+            this.deliveryTrackerUrl = deliveryTrackerUrl;
+        }
+        
+        public String getAuditComplianceUrl() {
+            return auditComplianceUrl;
+        }
+        
+        public void setAuditComplianceUrl(String auditComplianceUrl) {
+            this.auditComplianceUrl = auditComplianceUrl;
+        }
     }
     
     public static class SimulateProvider {
@@ -108,6 +144,36 @@ public class E2EConfiguration {
         
         public Boolean getEnabled() {
             return enabled;
+        }
+        
+        public void setEnabled(Boolean enabled) {
+            this.enabled = enabled;
+        }
+    }
+    
+    public static class RateLimitRetry {
+        private Integer maxAttempts;
+        private Long initialDelayMs;
+        private Boolean enabled;
+        
+        public Integer getMaxAttempts() {
+            return maxAttempts != null ? maxAttempts : 3; // Default: 3 tentativas
+        }
+        
+        public void setMaxAttempts(Integer maxAttempts) {
+            this.maxAttempts = maxAttempts;
+        }
+        
+        public Long getInitialDelayMs() {
+            return initialDelayMs != null ? initialDelayMs : 2000L; // Default: 2 segundos
+        }
+        
+        public void setInitialDelayMs(Long initialDelayMs) {
+            this.initialDelayMs = initialDelayMs;
+        }
+        
+        public Boolean getEnabled() {
+            return enabled != null ? enabled : true; // Default: habilitado
         }
         
         public void setEnabled(Boolean enabled) {

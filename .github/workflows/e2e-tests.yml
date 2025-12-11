@@ -30,6 +30,11 @@ jobs:
           # Valida sintaxe Gherkin
           mvn test-compile -Dcucumber.filter.tags="@nonexistent"
       
+      - name: Validate Tags Conformity
+        run: |
+          # Valida conformidade de tags conforme playbook 019.04
+          ./scripts/validate-tags.sh
+      
       - name: Upload Validation Results
         uses: actions/upload-artifact@v3
         if: always()
@@ -57,7 +62,7 @@ jobs:
         run: |
           mvn test \
             -Dspring.profiles.active=sit \
-            -Dcucumber.filter.tags="@sit and @implemented and @bu-identity"
+            -Dcucumber.filter.tags="@implemented and @vs-identity and not @not_implemented"
         env:
           SIT_IDENTITY_URL: ${{ secrets.SIT_IDENTITY_URL }}
           SIT_AUTH_URL: ${{ secrets.SIT_AUTH_URL }}
@@ -90,7 +95,7 @@ jobs:
         run: |
           mvn test \
             -Dspring.profiles.active=uat \
-            -Dcucumber.filter.tags="@uat and @implemented and (@critical or @high) and @bu-identity"
+            -Dcucumber.filter.tags="@implemented and @critical and @vs-identity and not @not_implemented"
         env:
           UAT_IDENTITY_URL: ${{ secrets.UAT_IDENTITY_URL }}
           UAT_AUTH_URL: ${{ secrets.UAT_AUTH_URL }}

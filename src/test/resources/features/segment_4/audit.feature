@@ -1,4 +1,4 @@
-@not_implemented @segment_4 @j4.7 @b2b @audit @enterprise @medium @e2e @may_require_auth
+@not_implemented @vs-identity @segment_4 @j4.7 @b2b @audit @enterprise @medium @e2e @may_require_auth
 Feature: Auditoria Completa de Acessos
   Como admin técnico de uma plataforma B2B
   Eu quero consultar auditoria completa

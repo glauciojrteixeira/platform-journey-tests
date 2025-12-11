@@ -5,25 +5,90 @@ Todas as mudanças notáveis neste projeto serão documentadas neste arquivo.
 O formato é baseado em [Keep a Changelog](https://keepachangelog.com/pt-BR/1.0.0/),
 e este projeto adere ao [Versionamento Semântico](https://semver.org/lang/pt-BR/).
 
-## [Unreleased]
+## [0.0.4-SNAPSHOT] - 2025-12-11
 
 ### Added
-- N/A
+- **Rate Limit Retry Configuration**: Configuração de retry para requisições que recebem rate limiting
+  - Nova classe `RateLimitRetry` em `E2EConfiguration` com `maxAttempts`, `initialDelayMs` e `enabled`
+  - Suporte para retry automático em requisições OTP quando rate limit é atingido
+  - Configuração via `application.yml` e `application-local.yml`
+
+- **Cross-VS Service Clients**: Novos clientes para serviços cross-VS
+  - `AuditComplianceServiceClient` - Cliente para serviço de auditoria e conformidade
+  - `DeliveryTrackerServiceClient` - Cliente para serviço de rastreamento de entregas
+  - `TransactionalMessagingServiceClient` - Cliente para serviço de mensageria transacional
+  - `CustomerCommunicationsSteps` - Step definitions para testes de comunicação com clientes
+
+- **Cross-VS Test Features**: Novos cenários de teste para serviços cross-VS
+  - Features em `src/test/resources/features/cross-vs/` para testes entre vertical services
+  - Features em `src/test/resources/features/vs-customer-communications/` para testes de comunicação
+
+- **Documentation**: Documentação abrangente de conformidade e implementação
+  - `docs/EXECUCAO_PASSOS_CONFORMIDADE_TAGS.md` - Execução de passos de conformidade de tags
+  - `docs/LICOES_APRENDIDAS_E2E_TESTING.md` - Lições aprendidas em testes E2E
+  - `docs/STATUS_FINAL_IMPLEMENTACAO.md` - Status final da implementação
+  - `docs/analysis/ANALISE_COBERTURA_CROSS_VS.md` - Análise de cobertura cross-VS
+  - `docs/analysis/ANALISE_CONFORMIDADE_TAGS_CENARIOS_EXISTENTES.md` - Análise de conformidade de tags
+  - `docs/analysis/COMPARACAO_CENARIOS_DOCUMENTACAO_VS_IMPLEMENTACAO.md` - Comparação de cenários
+  - `docs/guides/TAGS_REFERENCE_GUIDE.md` - Guia de referência de tags
+  - `docs/verification/IMPLEMENTACAO_COMPLETA_CROSS_VS.md` - Verificação de implementação cross-VS
+  - `docs/verification/IMPLEMENTACAO_CROSS_VS_SUMMARY.md` - Resumo de implementação cross-VS
+
+- **Scripts**: Scripts utilitários para execução e validação
+  - Scripts em `scripts/` para facilitar execução de testes
 
 ### Changed
-- N/A
+- **E2EConfiguration**: Adicionados novos serviços na configuração
+  - `transactionalMessagingUrl` - URL do serviço de mensageria transacional
+  - `deliveryTrackerUrl` - URL do serviço de rastreamento de entregas
+  - `auditComplianceUrl` - URL do serviço de auditoria e conformidade
 
-### Deprecated
-- N/A
+- **AuthServiceClient**: Melhorias no tratamento de rate limiting
+  - Implementação de retry automático para requisições OTP quando rate limit é atingido
+  - Detecção de ambiente local/teste para usar configurações mais permissivas
+  - Logging detalhado com prefixo `🔧 [TROUBLESHOOTING]` para facilitar debug
+  - Validação de email antes de enviar requisições OTP
 
-### Removed
-- N/A
+- **AuthenticationSteps**: Melhorias significativas em troubleshooting e geração de dados
+  - Geração automática de email e telefone quando não presentes no `userData`
+  - Correção de problemas com maps imutáveis retornados por DataTables
+  - Logging extensivo para diagnóstico de problemas
+  - Validação e correção automática de dados antes de construir requests
+
+- **UserFixture**: Melhorias no gerenciamento de estado
+  - Melhor tratamento de dados de usuário
+  - Suporte para geração automática de dados quando necessário
+
+- **RabbitMQHelper**: Melhorias no consumo de mensagens
+  - Suporte para cache e padrões de consumo mais robustos
+  - Melhor tratamento de timeouts
+
+- **Feature Tags**: Atualização de tags em todos os arquivos .feature
+  - Tags atualizadas de `@implemented` para `@vs-identity` em todos os cenários
+  - Melhor organização e filtragem de testes por vertical service
+
+- **GitHub Actions Workflow**: Atualizações no workflow de CI/CD
+  - Melhorias no workflow `e2e-tests.yml`
 
 ### Fixed
-- N/A
+- **Rate Limiting Issues**: Correção de problemas com rate limiting em testes E2E
+  - Implementação de retry automático para requisições que recebem 429 (Too Many Requests)
+  - Detecção de ambiente para usar configurações apropriadas (local: 100 req/hora, prod: 5 req/hora)
 
-### Security
-- N/A
+- **Data Management**: Correção de problemas com gerenciamento de dados de teste
+  - Correção de problemas com maps imutáveis retornados por DataTables
+  - Geração automática de dados quando necessário (email, telefone)
+  - Melhor validação de dados antes de construir requests
+
+- **Troubleshooting**: Melhorias significativas em logging e diagnóstico
+  - Logging detalhado em pontos críticos do fluxo de testes
+  - Prefixos padronizados para facilitar filtragem de logs
+  - Validações adicionais para identificar problemas rapidamente
+
+### Documentation
+- Documentação completa de conformidade de tags e implementação cross-VS
+- Guias de referência e análise de cobertura
+- Lições aprendidas e próximos passos documentados
 
 ## [0.0.3-SNAPSHOT] - 2025-12-10
 

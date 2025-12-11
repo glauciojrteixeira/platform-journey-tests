@@ -1,4 +1,4 @@
-@not_implemented @segment_2 @j2.6 @security @logout @high @e2e @otp_required
+@not_implemented @vs-identity @segment_2 @j2.6 @security @logout @high @e2e @otp_required
 Feature: Logout de Todos os Dispositivos
   Como um arrematador profissional
   Eu quero desconectar todos os dispositivos

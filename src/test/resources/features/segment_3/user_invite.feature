@@ -1,4 +1,4 @@
-@not_implemented @segment_3 @j3.2 @b2b @invite @high @e2e @may_require_auth
+@not_implemented @vs-identity @segment_3 @j3.2 @b2b @invite @high @e2e @may_require_auth
 Feature: Processo de Convite para Novo Usuário
   Como um admin de uma entidade jurídica
   Eu quero convidar novos usuários para minha empresa

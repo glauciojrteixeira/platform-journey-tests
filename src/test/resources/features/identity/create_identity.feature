@@ -1,4 +1,4 @@
-@implemented @segment_1 @j1.1 @identity @critical @e2e
+@implemented @vs-identity @segment_1 @j1.1 @identity @critical @e2e
 Feature: Criação de Identidade
   Como um novo usuário
   Eu quero criar minha identidade na plataforma

@@ -1,4 +1,4 @@
-@implemented @segment_1 @j1.6 @password @recovery @medium @e2e
+@implemented @vs-identity @segment_1 @j1.6 @password @recovery @medium @e2e
 Feature: Recuperação de Senha
   Como um usuário que esqueceu a senha
   Eu quero recuperar minha senha

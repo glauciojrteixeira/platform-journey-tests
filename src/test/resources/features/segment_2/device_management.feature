@@ -1,4 +1,4 @@
-@not_implemented @segment_2 @j2.5 @security @devices @medium @e2e
+@not_implemented @vs-identity @segment_2 @j2.5 @security @devices @medium @e2e
 Feature: Gestão de Dispositivos Conectados
   Como um arrematador profissional
   Eu quero gerenciar dispositivos onde estou logado

@@ -1,4 +1,4 @@
-@not_implemented @segment_3 @j3.7 @b2b @admin @critical @e2e @may_require_auth @otp_required
+@not_implemented @vs-identity @segment_3 @j3.7 @b2b @admin @critical @e2e @may_require_auth @otp_required
 Feature: Cancelamento de Entidade Jurídica
   Como um representante legal
   Eu quero cancelar a entidade jurídica

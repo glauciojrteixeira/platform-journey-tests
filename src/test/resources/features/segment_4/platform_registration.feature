@@ -1,4 +1,4 @@
-@not_implemented @segment_4 @j4.1 @b2b @enterprise @high @e2e @may_require_auth
+@not_implemented @vs-identity @segment_4 @j4.1 @b2b @enterprise @high @e2e @may_require_auth
 Feature: Registro e Validação Completa de Plataforma B2B
   Como representante técnico de uma plataforma parceira
   Eu quero registrar minha plataforma com todas as validações

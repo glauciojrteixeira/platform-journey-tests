@@ -1,4 +1,4 @@
-@not_implemented @segment_4 @j4.4 @b2b @api_keys @enterprise @high @e2e @may_require_auth
+@not_implemented @vs-identity @segment_4 @j4.4 @b2b @api_keys @enterprise @high @e2e @may_require_auth
 Feature: Geração e Gestão de API Keys
   Como um usuário técnico de uma plataforma parceira
   Eu quero gerar e gerenciar API keys

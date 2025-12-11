@@ -1,4 +1,4 @@
-@implemented @segment_1 @j1.1 @registration @critical @e2e
+@implemented @vs-identity @segment_1 @j1.1 @registration @critical @e2e
 Feature: Registro e Onboarding de Comprador Ocasional
   Como um comprador ocasional
   Eu quero me registrar na plataforma

@@ -1,4 +1,4 @@
-@implemented @segment_1 @j1.2 @authentication @critical @e2e
+@implemented @vs-identity @segment_1 @j1.2 @authentication @critical @e2e
 Feature: Autenticação para Compradores Ocasionais
   Como um comprador ocasional
   Eu quero fazer login na plataforma

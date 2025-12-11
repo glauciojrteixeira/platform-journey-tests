@@ -1,4 +1,4 @@
-@not_implemented @segment_3 @j3.6 @b2b @admin @critical @e2e @may_require_auth @otp_required
+@not_implemented @vs-identity @segment_3 @j3.6 @b2b @admin @critical @e2e @may_require_auth @otp_required
 Feature: Transferência de Representação Legal
   Como um representante legal atual
   Eu quero transferir minha função para outro usuário
