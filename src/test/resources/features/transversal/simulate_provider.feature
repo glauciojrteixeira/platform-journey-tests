@@ -16,6 +16,7 @@ Feature: Simulação de Providers
     Then a solicitação de OTP deve retornar status 200
     And o evento "otp.sent" deve ser publicado
     And o evento "otp.sent" deve conter o header "simulate-provider" com valor "true"
+    And o evento "otp.sent" deve conter o header "country-code" com valor "br"
     And a mensagem não deve ser enviada ao provider real
 
   @simulate-provider-user-creation
@@ -24,6 +25,7 @@ Feature: Simulação de Providers
     Then a identidade deve ser criada com sucesso
     And o evento "user.created.v1" deve ser publicado
     And o evento "user.created.v1" deve conter o header "simulate-provider" com valor "true"
+    And o evento "user.created.v1" deve conter o header "country-code" com valor "br"
 
   @simulate-provider-configuration
   Scenario: Simulação deve estar habilitada em ambientes não-PROD
@@ -42,4 +44,5 @@ Feature: Simulação de Providers
     And eu solicito OTP via "EMAIL" para "REGISTRATION"
     And eu solicito OTP via "EMAIL" para "REGISTRATION"
     Then todas as mensagens "otp.sent" devem conter o header "simulate-provider" com valor "true"
+    And todas as mensagens "otp.sent" devem conter o header "country-code" com valor "br"
 

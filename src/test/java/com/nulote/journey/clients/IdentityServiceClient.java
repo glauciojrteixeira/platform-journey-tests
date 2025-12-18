@@ -28,13 +28,21 @@ public class IdentityServiceClient {
     
     /**
      * Adiciona os headers obrigatórios de correlação e governança.
+     * Inclui o header country-code para suporte multi-country (conforme refatoração).
      * 
      * @param spec RequestSpecification do RestAssured
      * @return RequestSpecification com headers adicionados
      */
     private RequestSpecification addRequiredHeaders(RequestSpecification spec) {
+        String countryCode = config.getCountryCodeHeader();
         spec = spec.header("request-caller", "e2e-tests")
-                   .header("request-origin", "direct");
+                   .header("request-origin", "direct")
+                   .header("country-code", countryCode); // Multi-country: header lowercase conforme RFC 6648
+        
+        // Logging para debug (apenas em nível debug para não poluir logs)
+        var logger = org.slf4j.LoggerFactory.getLogger(IdentityServiceClient.class);
+        logger.debug("🌍 [MULTI-COUNTRY] Header 'country-code: {}' adicionado à requisição", countryCode);
+        
         return spec;
     }
     
@@ -47,6 +55,13 @@ public class IdentityServiceClient {
     private RequestSpecification addSimulateProviderHeader(RequestSpecification spec) {
         if (config.shouldSimulateProvider()) {
             spec = spec.header("simulate-provider", "true");
+            var logger = org.slf4j.LoggerFactory.getLogger(IdentityServiceClient.class);
+            logger.debug("✅ [SIMULATE-PROVIDER] Header 'simulate-provider: true' adicionado à requisição (ambiente: {})", 
+                config.getEnvironment());
+        } else {
+            var logger = org.slf4j.LoggerFactory.getLogger(IdentityServiceClient.class);
+            logger.debug("⚠️ [SIMULATE-PROVIDER] Header 'simulate-provider' NÃO adicionado (ambiente: {}, shouldSimulate: {})", 
+                config.getEnvironment(), config.shouldSimulateProvider());
         }
         return spec;
     }

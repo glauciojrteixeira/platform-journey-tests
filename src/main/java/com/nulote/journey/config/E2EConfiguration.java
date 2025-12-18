@@ -12,6 +12,7 @@ import org.springframework.context.annotation.Configuration;
 public class E2EConfiguration {
     
     private String environment;
+    private String defaultCountryCode = "BR"; // Default para Brasil (será convertido para lowercase no header)
     private Services services;
     private int timeout;
     private SimulateProvider simulateProvider = new SimulateProvider();
@@ -23,6 +24,24 @@ public class E2EConfiguration {
     
     public void setEnvironment(String environment) {
         this.environment = environment;
+    }
+    
+    public String getDefaultCountryCode() {
+        return defaultCountryCode;
+    }
+    
+    public void setDefaultCountryCode(String defaultCountryCode) {
+        this.defaultCountryCode = defaultCountryCode;
+    }
+    
+    /**
+     * Retorna o código do país em lowercase para uso no header HTTP.
+     * Conforme RFC 6648 e playbook, headers devem ser lowercase.
+     * 
+     * @return Código do país em lowercase (ex: "br", "ar", "cl")
+     */
+    public String getCountryCodeHeader() {
+        return defaultCountryCode != null ? defaultCountryCode.toLowerCase() : "br";
     }
     
     public Services getServices() {

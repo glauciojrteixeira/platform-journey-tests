@@ -4,6 +4,8 @@
 
 e2e:
   environment: sit
+  # Multi-Country: País padrão para testes (conforme refatoração multi-country)
+  default-country-code: BR  # Código do país em uppercase (será convertido para lowercase no header)
   simulate-provider:
     enabled: true  # Sempre simular em SIT para evitar custos e permitir testes frequentes
   services:

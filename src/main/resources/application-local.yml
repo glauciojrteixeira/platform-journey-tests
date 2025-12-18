@@ -5,6 +5,8 @@
 
 e2e:
   environment: local
+  # Multi-Country: País padrão para testes (conforme refatoração multi-country)
+  default-country-code: BR  # Código do país em uppercase (será convertido para lowercase no header)
   simulate-provider:
     enabled: true  # Sempre simular em local para evitar custos e dependências externas
   services:
@@ -15,4 +17,12 @@ e2e:
     delivery-tracker-url: http://localhost:8083
     audit-compliance-url: http://localhost:8090
   timeout: 30000
+
+# Configuração RabbitMQ para testes E2E (local)
+rabbitmq:
+  # Multi-Country: Virtual Host baseado no país
+  # Em desenvolvimento local, tenta usar "/br" se os serviços estão configurados para multi-country
+  # Se os serviços ainda usam "/" (padrão), usar "/"
+  # Pode ser sobrescrito via variável de ambiente: RABBITMQ_VIRTUAL_HOST=/br
+  virtual-host: ${RABBITMQ_VIRTUAL_HOST:/br}  # Default: "/br" para multi-country local
 

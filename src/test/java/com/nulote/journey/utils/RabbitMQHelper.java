@@ -1,10 +1,12 @@
 package com.nulote.journey.utils;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.nulote.journey.config.E2EConfiguration;
 import com.rabbitmq.client.Channel;
 import com.rabbitmq.client.Connection;
 import com.rabbitmq.client.ConnectionFactory;
 import com.rabbitmq.client.GetResponse;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 
@@ -35,39 +37,103 @@ public class RabbitMQHelper {
     @Value("${rabbitmq.password:guest}")
     private String password;
     
+    @Value("${rabbitmq.virtual-host:/}")
+    private String virtualHost;
+    
+    @Autowired
+    private E2EConfiguration config;
+    
     private Connection connection;
     private Channel channel;
     private ObjectMapper objectMapper;
     private Map<String, Event> lastConsumedMessages = new HashMap<>();
     
     @PostConstruct
-    public void init() throws IOException, TimeoutException {
+    public void init() {
         var logger = org.slf4j.LoggerFactory.getLogger(RabbitMQHelper.class);
+        // Inicializar ObjectMapper imediatamente (não depende de RabbitMQ)
+        objectMapper = new ObjectMapper();
+        
+        // Tentar conectar ao RabbitMQ, mas não falhar o ApplicationContext se não conseguir
+        // A conexão será estabelecida de forma lazy quando necessário
         try {
-            logger.info("🔧 [TROUBLESHOOTING] Iniciando conexão com RabbitMQ em {}:{}", host, port);
-            ConnectionFactory factory = new ConnectionFactory();
-            factory.setHost(host);
-            factory.setPort(port);
-            factory.setUsername(username);
-            factory.setPassword(password);
-            
-            // Configurar timeout de conexão para evitar travamentos
-            factory.setConnectionTimeout(5000); // 5 segundos
-            factory.setNetworkRecoveryInterval(5000); // 5 segundos
-            
-            connection = factory.newConnection();
-            channel = connection.createChannel();
-            objectMapper = new ObjectMapper();
-            logger.info("✅ [TROUBLESHOOTING] Conexão RabbitMQ estabelecida com sucesso em {}:{}", host, port);
+            connect();
         } catch (Exception e) {
-            logger.error("❌ [TROUBLESHOOTING] Erro ao inicializar conexão RabbitMQ em {}:{} - {}", 
-                host, port, e.getMessage());
-            logger.error("❌ [TROUBLESHOOTING] Verifique se:");
-            logger.error("   1. RabbitMQ está rodando (docker ps | grep rabbitmq)");
-            logger.error("   2. Host e porta estão corretos ({}:{})", host, port);
-            logger.error("   3. Credenciais estão corretas (usuário: {})", username);
-            throw e;
+            logger.warn("⚠️ [TROUBLESHOOTING] Não foi possível conectar ao RabbitMQ durante inicialização: {}", e.getMessage());
+            logger.warn("⚠️ [TROUBLESHOOTING] A conexão será estabelecida de forma lazy quando necessário.");
+            logger.warn("⚠️ [TROUBLESHOOTING] Verifique se:");
+            logger.warn("   1. RabbitMQ está rodando (docker ps | grep rabbitmq)");
+            logger.warn("   2. Host e porta estão corretos ({}:{})", host, port);
+            logger.warn("   3. Credenciais estão corretas (usuário: {})", username);
+            logger.warn("   4. Virtual host existe e tem permissões configuradas");
+            // NÃO lançar exceção - permitir que o ApplicationContext carregue
+            // A conexão será tentada novamente quando necessário (lazy connection)
         }
+    }
+    
+    /**
+     * Estabelece conexão com RabbitMQ.
+     * Pode ser chamado durante init() ou de forma lazy quando necessário.
+     * 
+     * @throws IOException Se houver erro de I/O
+     * @throws TimeoutException Se houver timeout
+     */
+    private void connect() throws IOException, TimeoutException {
+        var logger = org.slf4j.LoggerFactory.getLogger(RabbitMQHelper.class);
+        
+        // Se já está conectado, não reconectar
+        if (connection != null && connection.isOpen() && channel != null && channel.isOpen()) {
+            logger.debug("Conexão RabbitMQ já está estabelecida");
+            return;
+        }
+        
+        // Determinar virtual host: prioridade para configuração explícita, depois baseado no país
+        String finalVirtualHost = determineVirtualHost();
+        
+        logger.info("🔧 [TROUBLESHOOTING] Iniciando conexão com RabbitMQ em {}:{} (virtual host: {})", 
+            host, port, finalVirtualHost);
+        ConnectionFactory factory = new ConnectionFactory();
+        factory.setHost(host);
+        factory.setPort(port);
+        factory.setUsername(username);
+        factory.setPassword(password);
+        factory.setVirtualHost(finalVirtualHost); // Multi-country: configurar virtual host
+        
+        // Configurar timeout de conexão para evitar travamentos
+        factory.setConnectionTimeout(5000); // 5 segundos
+        factory.setNetworkRecoveryInterval(5000); // 5 segundos
+        
+        connection = factory.newConnection();
+        channel = connection.createChannel();
+        logger.info("✅ [TROUBLESHOOTING] Conexão RabbitMQ estabelecida com sucesso em {}:{} (virtual host: {})", 
+            host, port, finalVirtualHost);
+    }
+    
+    /**
+     * Determina o virtual host a ser usado baseado na configuração.
+     * Prioridade:
+     * 1. Configuração explícita (rabbitmq.virtual-host)
+     * 2. Baseado no país (config.getCountryCodeHeader() -> "/br")
+     * 3. Fallback para "/" (padrão)
+     */
+    private String determineVirtualHost() {
+        // Se virtual host foi configurado explicitamente, usar
+        if (virtualHost != null && !virtualHost.isEmpty() && !virtualHost.equals("/")) {
+            return virtualHost;
+        }
+        
+        // Se não, tentar inferir do país
+        if (config != null && config.getDefaultCountryCode() != null) {
+            String countryCode = config.getCountryCodeHeader(); // Retorna lowercase (ex: "br")
+            String vhost = "/" + countryCode; // Ex: "/br"
+            var logger = org.slf4j.LoggerFactory.getLogger(RabbitMQHelper.class);
+            logger.debug("🌍 [MULTI-COUNTRY] Virtual host inferido do país: {} -> {}", 
+                config.getDefaultCountryCode(), vhost);
+            return vhost;
+        }
+        
+        // Fallback para padrão
+        return "/";
     }
     
     @PreDestroy
@@ -142,7 +208,7 @@ public class RabbitMQHelper {
             if (channel == null || !channel.isOpen()) {
                 logger.debug("Canal RabbitMQ não está aberto. Tentando reconectar...");
                 try {
-                    init();
+                    connect();
                 } catch (Exception e) {
                     logger.warn("Erro ao reconectar ao RabbitMQ: {}", e.getMessage());
                     return null;
@@ -198,7 +264,7 @@ public class RabbitMQHelper {
         if (connection == null || !connection.isOpen()) {
             logger.warn("⚠️ [TROUBLESHOOTING] Conexão RabbitMQ não está aberta. Tentando reconectar...");
             try {
-                init();
+                connect();
             } catch (Exception e) {
                 logger.error("❌ [TROUBLESHOOTING] Falha ao reconectar ao RabbitMQ: {}", e.getMessage());
                 return null;
@@ -333,7 +399,7 @@ public class RabbitMQHelper {
             if (connection == null || !connection.isOpen() || channel == null || !channel.isOpen()) {
                 logger.debug("Conexão RabbitMQ não está aberta. Tentando reconectar...");
                 try {
-                    init();
+                    connect();
                 } catch (Exception e) {
                     logger.warn("Erro ao reconectar ao RabbitMQ: {}", e.getMessage());
                     return null;

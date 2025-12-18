@@ -26,13 +26,15 @@ public class ProfileServiceClient {
     
     /**
      * Adiciona os headers obrigatórios de correlação e governança.
+     * Inclui o header country-code para suporte multi-country (conforme refatoração).
      * 
      * @param spec RequestSpecification do RestAssured
      * @return RequestSpecification com headers adicionados
      */
     private io.restassured.specification.RequestSpecification addRequiredHeaders(io.restassured.specification.RequestSpecification spec) {
         spec = spec.header("request-caller", "e2e-tests")
-                   .header("request-origin", "direct");
+                   .header("request-origin", "direct")
+                   .header("country-code", config.getCountryCodeHeader()); // Multi-country: header lowercase conforme RFC 6648
         return spec;
     }
     

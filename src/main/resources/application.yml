@@ -5,6 +5,9 @@ spring:
 # Configuração padrão E2E
 e2e:
   environment: local
+  # Multi-Country: País padrão para testes (conforme refatoração multi-country)
+  # O código será convertido para lowercase no header HTTP (conforme RFC 6648)
+  default-country-code: BR  # Código do país em uppercase
   timeout: 30000
   # Timeouts para eventos assíncronos (mensageria)
   # Considerando cluster local com latência mínima:
@@ -35,4 +38,8 @@ rabbitmq:
   port: 5672
   username: guest
   password: guest
+  # Multi-Country: Virtual Host baseado no país (conforme refatoração multi-country)
+  # Em desenvolvimento local, pode ser "/" (padrão) ou "/br" dependendo da configuração dos serviços
+  # Em produção, usa "/br", "/ar", "/cl", "/bo" conforme país
+  virtual-host: ${RABBITMQ_VIRTUAL_HOST:/}  # Default: "/" (root), pode ser "/br" para multi-country
 

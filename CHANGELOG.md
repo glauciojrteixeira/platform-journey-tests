@@ -5,6 +5,69 @@ Todas as mudanças notáveis neste projeto serão documentadas neste arquivo.
 O formato é baseado em [Keep a Changelog](https://keepachangelog.com/pt-BR/1.0.0/),
 e este projeto adere ao [Versionamento Semântico](https://semver.org/lang/pt-BR/).
 
+## [0.0.5-SNAPSHOT] - 2025-12-18
+
+### Added
+- **Multi-Country Support**: Implementação completa de testes para suporte multi-país
+  - Nova feature `multi_country.feature` com 4 cenários de teste
+  - `MultiCountrySteps` - Step definitions para validação de suporte multi-país
+  - Validação de header `country-code` em eventos RabbitMQ
+  - Validação de virtual hosts RabbitMQ baseados em país
+  - Validação de formato lowercase do header `country-code` (RFC 6648 compliant)
+- **RabbitMQ Helper Improvements**: Melhorias significativas no RabbitMQHelper
+  - Implementação de lazy connection (conexão sob demanda)
+  - Tratamento resiliente de erros durante inicialização
+  - Conexão automática quando necessário (consumeMessage, getQueueInfo)
+  - Logs detalhados para troubleshooting
+  - Suporte para virtual hosts baseados em país
+- **Enhanced Logging**: Melhorias significativas no logging
+  - Logs detalhados para extração e propagação de `country-code` header
+  - Logs de troubleshooting com prefixo `🔧 [TROUBLESHOOTING]`
+  - Melhor rastreabilidade de eventos através do sistema
+- **Configuration Updates**: Atualizações de configuração
+  - `E2EConfiguration`: Adicionado suporte para país padrão
+  - `application.yml`: Configurações de país padrão
+  - `application-local.yml`, `application-sit.yml`, `application-uat.yml`: Configurações por ambiente
+- **Service Clients Updates**: Atualizações em todos os service clients
+  - `AuthServiceClient`: Melhorias no tratamento de headers
+  - `IdentityServiceClient`: Melhorias no tratamento de headers
+  - `AuditComplianceServiceClient`: Melhorias no tratamento de headers
+  - `DeliveryTrackerServiceClient`: Melhorias no tratamento de headers
+  - `ProfileServiceClient`: Melhorias no tratamento de headers
+  - `TransactionalMessagingServiceClient`: Melhorias no tratamento de headers
+- **Feature Updates**: Atualizações em features existentes
+  - `simulate_provider.feature`: Validação de header `country-code` adicionada
+- **Documentation**: Documentação abrangente adicionada (40+ arquivos)
+  - Documentação de conformidade, implementação, execução, troubleshooting
+  - Guias de referência, análises, planos de ação
+  - Status de execução, resultados, cobertura de testes
+
+### Changed
+- **RabbitMQHelper**: Refatoração completa para melhor resiliência
+  - `init()` agora não falha se RabbitMQ não estiver disponível durante inicialização
+  - Conexão lazy implementada (conecta quando necessário)
+  - Melhor tratamento de erros e logging
+  - Suporte para virtual hosts baseados em país
+- **E2EConfiguration**: Adicionado suporte para país padrão
+  - Nova propriedade `defaultCountryCode` para configuração de país padrão
+  - Suporte para diferentes países por ambiente
+
+### Fixed
+- **RabbitMQ Connection Resilience**: Correção de problema crítico
+  - `RabbitMQHelper.init()` não falha mais se RabbitMQ não estiver disponível
+  - ApplicationContext agora carrega mesmo se RabbitMQ estiver indisponível
+  - Conexão estabelecida de forma lazy quando necessário
+  - Logs de warning informativos quando conexão inicial falha
+
+### Technical Details
+- **Multi-Country Testing**: Suporte completo para testes multi-país
+  - Validação de headers `country-code` em eventos RabbitMQ
+  - Validação de virtual hosts baseados em país
+  - Validação de formato lowercase (RFC 6648 compliant)
+- **RabbitMQ Resilience**: Conexão resiliente que não bloqueia inicialização
+- **Observability**: Logs detalhados em todos os pontos críticos para facilitar debugging
+- **Documentation**: Documentação completa de todas as funcionalidades e melhorias
+
 ## [0.0.4-SNAPSHOT] - 2025-12-11
 
 ### Added
