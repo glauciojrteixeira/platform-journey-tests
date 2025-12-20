@@ -1093,6 +1093,75 @@ public class AuthenticationSteps {
         userData.put("password", "TestPassword123!");
         userFixture.setUserData(userData);
         
+        // Continuar com o processo de criação
+        criarUsuarioComDadosDoFixture();
+    }
+    
+    @Dado("que crio um usuário com esses dados:")
+    public void que_crio_um_usuario_com_esses_dados(io.cucumber.datatable.DataTable dataTable) {
+        // Extrair dados do DataTable
+        var originalData = dataTable.asMap(String.class, String.class);
+        var userData = new java.util.HashMap<String, String>(originalData);
+        
+        // Processar placeholders como {unique_cpf}, {unique_email}, etc.
+        processarPlaceholders(userData);
+        
+        // Se password não foi fornecido, usar padrão
+        if (!userData.containsKey("password") || userData.get("password") == null || userData.get("password").trim().isEmpty()) {
+            userData.put("password", "TestPassword123!");
+        }
+        
+        userFixture.setUserData(userData);
+        
+        // Continuar com o processo de criação
+        criarUsuarioComDadosDoFixture();
+    }
+    
+    /**
+     * Processa placeholders nos dados do usuário (ex: {unique_cpf}, {unique_email}).
+     */
+    private void processarPlaceholders(java.util.Map<String, String> userData) {
+        for (Map.Entry<String, String> entry : userData.entrySet()) {
+            String value = entry.getValue();
+            if (value != null && value.startsWith("{") && value.endsWith("}")) {
+                String placeholder = value.substring(1, value.length() - 1).toLowerCase();
+                
+                switch (placeholder) {
+                    case "unique_cpf":
+                    case "unique_cpf_br":
+                    case "unique_cpf_ar":
+                    case "unique_cpf_cl":
+                        userData.put(entry.getKey(), com.nulote.journey.fixtures.TestDataGenerator.generateUniqueCpf());
+                        break;
+                    case "unique_email":
+                    case "unique_email_br":
+                    case "unique_email_ar":
+                    case "unique_email_cl":
+                        userData.put(entry.getKey(), com.nulote.journey.fixtures.TestDataGenerator.generateUniqueEmail());
+                        break;
+                    case "unique_phone":
+                    case "unique_phone_br":
+                    case "unique_phone_ar":
+                    case "unique_phone_cl":
+                        userData.put(entry.getKey(), com.nulote.journey.fixtures.TestDataGenerator.generateUniquePhone());
+                        break;
+                    default:
+                        // Se não for um placeholder conhecido, manter o valor original
+                        break;
+                }
+            }
+        }
+    }
+    
+    /**
+     * Método auxiliar que realiza a criação do usuário usando os dados do fixture.
+     */
+    private void criarUsuarioComDadosDoFixture() {
+        var userData = userFixture.getUserData();
+        if (userData == null) {
+            throw new IllegalStateException("Dados do usuário não foram inicializados no fixture.");
+        }
+        
         // Limpar sessionToken anterior (se houver) pois é de uso único
         userFixture.setSessionToken(null);
         

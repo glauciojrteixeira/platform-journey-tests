@@ -5,6 +5,55 @@ Todas as mudanças notáveis neste projeto serão documentadas neste arquivo.
 O formato é baseado em [Keep a Changelog](https://keepachangelog.com/pt-BR/1.0.0/),
 e este projeto adere ao [Versionamento Semântico](https://semver.org/lang/pt-BR/).
 
+## [0.0.6-SNAPSHOT] - 2025-12-19
+
+### Added
+- **Multi-Country E2E Test Scenarios**: Novos cenários de teste para validação de isolamento e propagação multi-country
+  - Cenário "Dados devem ser isolados por país - Idempotência por país": Valida que CPF não pode ser duplicado no mesmo país
+  - Cenário "countryCode deve ser propagado entre microserviços": Valida propagação de `country-code` através de transactional-messaging → delivery-tracker → audit-compliance
+  - Cenário "Sistema deve suportar múltiplos países simultaneamente": Valida criação de usuários em diferentes países (BR, AR, CL)
+- **Enhanced Step Definitions**: Melhorias significativas em step definitions para suporte multi-country
+  - `AuthenticationSteps`: Adicionado suporte para criação de usuário com dados dinâmicos via DataTable com placeholders (`{unique_cpf}`, `{unique_email}`, etc.)
+  - `MultiCountrySteps`: Implementação completa de steps para criação de usuário em diferentes países e validação de duplicação
+  - `MultiCountrySteps`: Adicionado step `eu configuro o país padrão como {string}` para configuração dinâmica de país durante execução
+  - `MultiCountrySteps`: Adicionado step `eu tento criar um usuário com os mesmos dados no país {string}` para validação de idempotência por país
+- **Placeholder Processing**: Sistema de processamento de placeholders em dados de teste
+  - Suporte para `{unique_cpf}`, `{unique_email}`, `{unique_phone}` com variações por país (`{unique_cpf_br}`, `{unique_email_ar}`, etc.)
+  - Geração automática de dados únicos usando `TestDataGenerator`
+- **Multi-Service Integration**: Integração completa com múltiplos serviços para validação de propagação de `country-code`
+  - Integração com `AuthServiceClient` para solicitação e validação de OTP
+  - Integração com `IdentityServiceClient` para criação de usuário
+  - Integração com `DeliveryTrackerServiceClient` para validação de tracking
+  - Integração com `AuditComplianceServiceClient` para validação de logs de auditoria
+  - Integração com `TransactionalMessagingServiceClient` para validação de mensageria
+
+### Changed
+- **AuthenticationSteps**: Refatoração para suportar criação de usuário com dados dinâmicos
+  - Método `que_crio_um_usuario_com_esses_dados(DataTable)` agora processa placeholders automaticamente
+  - Método auxiliar `criarUsuarioComDadosDoFixture()` extraído para reutilização
+  - Método `processarPlaceholders()` adicionado para processar placeholders dinâmicos
+- **MultiCountrySteps**: Implementação completa de lógica de criação de usuário com OTP
+  - Step `eu_tento_criar_um_usuario_com_os_mesmos_dados_no_pais()` agora realiza criação completa de usuário (OTP request → OTP validation → user creation)
+  - Logging detalhado adicionado para troubleshooting de fluxo de criação de usuário
+  - Validação explícita de `sessionToken` antes de criar usuário
+  - Compartilhamento de `lastResponse` com `AuthenticationSteps` via reflection para validação de erros
+- **multi_country.feature**: Adicionados 3 novos cenários de teste
+  - Cenário de idempotência ajustado para refletir comportamento atual do backend (CPF é único globalmente, não por país)
+  - Comentários explicativos adicionados sobre limitações atuais do backend (CPF é específico do Brasil)
+  - Nota sobre necessidade de atualização quando backend suportar documentos de outros países (CUIT, RUT, etc.)
+
+### Fixed
+- **UndefinedStepException**: Corrigido erro de step não definido para `que crio um usuário com esses dados:` com DataTable
+- **DuplicateStepDefinition**: Corrigido erro de step duplicado removendo anotação `@Quando` redundante de `que_crio_um_usuario_com_esses_dados(DataTable)`
+- **Missing Registration Token**: Corrigido erro de `registration-token header is required` implementando fluxo completo de OTP antes de criar usuário
+- **Response Sharing**: Implementado compartilhamento de `lastResponse` entre `MultiCountrySteps` e `AuthenticationSteps` para validação de erros
+
+### Technical Details
+- **DataTable Processing**: Processamento de DataTables com suporte a placeholders dinâmicos
+- **OTP Flow**: Implementação completa de fluxo OTP (request → validation → sessionToken) para criação de usuário
+- **Multi-Country Validation**: Validação de isolamento de dados por país e propagação de `country-code` entre serviços
+- **Error Handling**: Melhor tratamento de erros com logging detalhado e validações explícitas
+
 ## [0.0.5-SNAPSHOT] - 2025-12-18
 
 ### Added
