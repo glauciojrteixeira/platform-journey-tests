@@ -9,9 +9,9 @@ Feature: Upgrade para Segmento Profissional
     And os microserviços estão rodando
     And que estou autenticado como Segmento 1
 
-  Scenario: Upgrade bem-sucedido com CPF validado
+  Scenario: Upgrade bem-sucedido com documento validado
     Given que tenho uma conta do Segmento 1
-    And meu CPF já foi validado
+    And meu documento já foi validado
     When eu solicito upgrade para segmento profissional
     Then o upgrade deve ser realizado com sucesso
     And o campo "relationship" ou segmento deve ser atualizado
@@ -19,21 +19,21 @@ Feature: Upgrade para Segmento Profissional
     And as funcionalidades profissionais devem ser habilitadas
     And o MFA pode ser ativado imediatamente
 
-  Scenario: Upgrade solicita validação de CPF se não validado
+  Scenario: Upgrade solicita validação de documento se não validado
     Given que tenho uma conta do Segmento 1
-    And meu CPF ainda não foi validado
+    And meu documento ainda não foi validado
     When eu solicito upgrade para segmento profissional
-    Then o sistema deve solicitar validação de CPF primeiro
-    When eu valido meu CPF via serviço externo
+    Then o sistema deve solicitar validação de documento primeiro
+    When eu valido meu documento via serviço externo
     Then o upgrade deve prosseguir automaticamente
     And o upgrade deve ser concluído com sucesso
 
-  Scenario: Upgrade falha com CPF inválido
+  Scenario: Upgrade falha com documento inválido
     Given que tenho uma conta do Segmento 1
     When eu solicito upgrade para segmento profissional
-    And o sistema solicita validação de CPF
-    When a validação de CPF falha (CPF inválido)
+    And o sistema solicita validação de documento
+    When a validação de documento falha (documento inválido)
     Then o upgrade deve falhar
     And a conta deve permanecer no Segmento 1
-    And o erro deve indicar que CPF precisa ser válido para upgrade
+    And o erro deve indicar que documento precisa ser válido para upgrade
 

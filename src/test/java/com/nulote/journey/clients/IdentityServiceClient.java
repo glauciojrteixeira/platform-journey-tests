@@ -141,6 +141,20 @@ public class IdentityServiceClient {
         logger.debug("Request URL: {}/api/v1/identity/users", getBaseUrl());
         logger.debug("SessionToken being sent: {}...", sessionToken.length() > 8 ? sessionToken.substring(0, 8) : sessionToken);
         
+        // Log do request body para debug
+        try {
+            if (request instanceof java.util.Map) {
+                @SuppressWarnings("unchecked")
+                java.util.Map<String, Object> requestMap = (java.util.Map<String, Object>) request;
+                logger.info("🔍 [IdentityClient] Request body antes de serializar: {}", requestMap);
+                logger.info("🔍 [IdentityClient] documentType no request: '{}' (tipo: {})", 
+                    requestMap.get("documentType"), 
+                    requestMap.get("documentType") != null ? requestMap.get("documentType").getClass().getSimpleName() : "null");
+            }
+        } catch (Exception e) {
+            logger.warn("⚠️ Erro ao logar request body: {}", e.getMessage());
+        }
+        
         Response response = spec.body(request)
             .when()
             .post("/api/v1/identity/users")

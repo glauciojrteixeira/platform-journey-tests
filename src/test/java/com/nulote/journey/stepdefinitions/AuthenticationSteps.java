@@ -42,6 +42,9 @@ public class AuthenticationSteps {
     @Autowired
     private RabbitMQHelper rabbitMQHelper;
     
+    @Autowired
+    private com.nulote.journey.config.E2EConfiguration config;
+    
     // Configurações de timeout para eventos assíncronos
     @Value("${e2e.event-timeout-seconds:3}")
     private long eventTimeoutSeconds;
@@ -100,17 +103,185 @@ public class AuthenticationSteps {
         var originalData = dataTable.asMap(String.class, String.class);
         var userData = new java.util.HashMap<String, String>(originalData);
         
-        // Gerar dados únicos para evitar conflitos em execuções repetidas
-        // Se CPF ou email são valores comuns de teste, substituir por valores únicos
-        String cpf = userData.get("cpf");
-        String email = userData.get("email");
+        var logger = org.slf4j.LoggerFactory.getLogger(AuthenticationSteps.class);
+        logger.info("🔍 [DEBUG] DataTable recebido - documentType original: '{}'", userData.get("documentType"));
+        logger.info("🔍 [DEBUG] DataTable completo: {}", userData);
         
-        // Se CPF é um valor comum de teste (como 11144477735), gerar um único
-        if (cpf != null && (cpf.equals("11144477735") || cpf.equals("12345678901") || cpf.equals("98765432100"))) {
-            cpf = com.nulote.journey.fixtures.TestDataGenerator.generateUniqueCpf();
-            userData.put("cpf", cpf);
-            org.slf4j.LoggerFactory.getLogger(AuthenticationSteps.class)
-                .debug("CPF substituído por valor único: {}", cpf);
+        // CORREÇÃO CRÍTICA: Verificar se documentType está presente ANTES de processar placeholders
+        // O Cucumber substitui <document_type> do Examples ANTES de passar para o step definition
+        // Mas pode haver casos onde o valor não está sendo capturado corretamente
+        // IMPORTANTE: NÃO inferir documentType quando ele for null - isso quebra testes de validação
+        String initialDocumentType = userData.get("documentType");
+        if (initialDocumentType == null || initialDocumentType.trim().isEmpty() || 
+            initialDocumentType.equals("<document_type>") || initialDocumentType.startsWith("<")) {
+            // NÃO inferir automaticamente - deixar null para testes de validação
+            // Apenas logar o problema
+            if (initialDocumentType != null && (initialDocumentType.equals("<document_type>") || initialDocumentType.startsWith("<"))) {
+                logger.error("❌ [DEBUG] PROBLEMA CRÍTICO: documentType não foi substituído pelo Cucumber! Valor: '{}'", initialDocumentType);
+                logger.error("❌ [DEBUG] Isso indica que o Cucumber não substituiu <document_type> do Examples corretamente.");
+                // Apenas para casos onde o Cucumber realmente não substituiu (não para testes de validação)
+                // NÃO inferir automaticamente - isso quebra testes que esperam null
+            } else {
+                logger.info("ℹ️ [DEBUG] documentType é null ou vazio - mantendo assim (pode ser teste de validação)");
+            }
+        }
+        
+        // IMPORTANTE: Processar placeholders ANTES de validar
+        // Processar múltiplas vezes para garantir que todos os placeholders foram substituídos
+        // CORREÇÃO: Verificar placeholders mesmo com aspas duplas (ex: "{unique_cpf}")
+        boolean hasPlaceholders = true;
+        int maxIterations = 3;
+        int iterations = 0;
+        while (hasPlaceholders && iterations < maxIterations) {
+            hasPlaceholders = false;
+            for (String value : userData.values()) {
+                if (value != null) {
+                    String trimmedValue = value.trim();
+                    // Remover aspas duplas se presentes
+                    if (trimmedValue.startsWith("\"") && trimmedValue.endsWith("\"")) {
+                        trimmedValue = trimmedValue.substring(1, trimmedValue.length() - 1).trim();
+                    }
+                    // Verificar se é placeholder (com ou sem aspas)
+                    if (trimmedValue.startsWith("{") && trimmedValue.endsWith("}")) {
+                        hasPlaceholders = true;
+                        break;
+                    }
+                }
+            }
+            if (hasPlaceholders) {
+                processarPlaceholders(userData);
+                iterations++;
+            }
+        }
+        
+        logger.info("🔍 [DEBUG] Após processar placeholders - documentType: '{}'", userData.get("documentType"));
+        
+        // Gerar dados únicos para evitar conflitos em execuções repetidas
+        // Se documentNumber/documentType ou email são valores comuns de teste, substituir por valores únicos
+        String documentNumber = userData.get("documentNumber");
+        String documentType = userData.get("documentType");
+        String email = userData.get("email");
+        String telefone = userData.get("telefone");
+        
+        // Normalizar documentType para uppercase (backend espera uppercase: CPF, CNPJ, etc.)
+        // IMPORTANTE: Fazer isso ANTES de verificar null/vazio para garantir que valores válidos sejam normalizados
+        // Isso garante que mesmo se o feature file tiver "cpf" em minúsculas ou valores de Examples, será normalizado para "CPF"
+        logger.info("🔍 [DEBUG] DocumentType antes da normalização: '{}' (null? {}, empty? {}, startsWith{{? {})", 
+            documentType, documentType == null, documentType != null && documentType.trim().isEmpty(), 
+            documentType != null && documentType.startsWith("{"));
+        
+        // CORREÇÃO CRÍTICA: Remover aspas duplas do documentType (feature file pode ter "CPF" com aspas)
+        // IMPORTANTE: O Cucumber substitui <document_type> do Examples ANTES de passar para o step definition
+        // Então o valor já vem substituído (ex: "CPF", "CNPJ", etc.) e não precisa ser tratado como placeholder
+        if (documentType != null && !documentType.trim().isEmpty() && !documentType.startsWith("{")) {
+            String originalDocumentType = documentType;
+            // Remover aspas duplas no início e fim
+            documentType = documentType.trim();
+            if (documentType.startsWith("\"") && documentType.endsWith("\"")) {
+                documentType = documentType.substring(1, documentType.length() - 1).trim();
+                logger.info("🔧 [DEBUG] Removidas aspas duplas do documentType: '{}' -> '{}'", originalDocumentType, documentType);
+            }
+            // Normalizar para uppercase
+            documentType = documentType.toUpperCase().trim();
+            userData.put("documentType", documentType);
+            logger.info("✅ [DEBUG] DocumentType normalizado de '{}' para '{}'", originalDocumentType, documentType);
+        } else {
+            logger.warn("⚠️ [DEBUG] DocumentType não foi normalizado (null? {}, empty? {}, placeholder? {})", 
+                documentType == null, 
+                documentType != null && documentType.trim().isEmpty(),
+                documentType != null && documentType.startsWith("{"));
+        }
+        
+        // Validar que documentNumber e documentType estão presentes e não são placeholders
+        // NOTA: Para testes de validação que esperam falha, permitir valores inválidos
+        // O backend deve validar, não o step definition
+        if (documentNumber == null || documentNumber.trim().isEmpty() || documentNumber.startsWith("{")) {
+            // Se documentNumber está ausente ou é placeholder, permitir que seja enviado como null para que o backend valide
+            // Não lançar exceção aqui - deixar o backend validar
+            if (documentNumber == null || documentNumber.trim().isEmpty()) {
+                userData.put("documentNumber", null);
+            }
+        }
+        
+        // Para documentType, verificar se já foi normalizado antes de definir como null
+        // IMPORTANTE: Se documentType foi normalizado acima (não é null e não é placeholder), não sobrescrever
+        String normalizedDocumentType = userData.get("documentType");
+        logger.info("🔍 [DEBUG] DocumentType após normalização inicial: '{}'", normalizedDocumentType);
+        
+        // IMPORTANTE: O Cucumber substitui <document_type> do Examples ANTES de passar para o step definition
+        // Então se o documentType está presente e não é placeholder, deve ser usado como está
+        // NÃO inferir documentType do país automaticamente - isso pode quebrar testes de validação
+        // O documentType deve vir explicitamente do DataTable ou do Examples
+        if (normalizedDocumentType == null || normalizedDocumentType.trim().isEmpty()) {
+            // Se documentType está ausente, manter como null
+            // NÃO inferir do país - isso quebraria testes de validação que esperam documentType null
+            userData.put("documentType", null);
+            logger.warn("⚠️ [DEBUG] DocumentType está ausente no DataTable - mantendo como null (será validado pelo backend)");
+        } else if (normalizedDocumentType.startsWith("{")) {
+            // Se ainda é placeholder após processamento, deixar null
+            logger.warn("⚠️ [DEBUG] DocumentType ainda é placeholder após processamento: '{}' - mantendo como null", normalizedDocumentType);
+            userData.put("documentType", null);
+        } else {
+            // DocumentType foi normalizado acima e está presente - manter o valor
+            logger.info("✅ [DEBUG] DocumentType preservado do DataTable/Examples: '{}'", normalizedDocumentType);
+        }
+        // Se documentType foi normalizado acima (não null, não vazio, não placeholder), manter o valor normalizado
+        // A normalização final abaixo garantirá que esteja em uppercase
+        
+        // Garantir que email e telefone estão presentes e válidos
+        if (email == null || email.trim().isEmpty() || email.startsWith("{") || !email.contains("@")) {
+            email = com.nulote.journey.fixtures.TestDataGenerator.generateUniqueEmail();
+            userData.put("email", email);
+        }
+        
+        if (telefone == null || telefone.trim().isEmpty() || telefone.startsWith("{") || !telefone.startsWith("+")) {
+            telefone = com.nulote.journey.fixtures.TestDataGenerator.generateUniquePhone();
+            userData.put("telefone", telefone);
+        }
+        
+        // Se documentNumber é um valor comum de teste, gerar um único baseado no tipo
+        // IMPORTANTE: Verificar null antes de usar .equals()
+        if (documentNumber != null && 
+            (documentNumber.equals("11144477735") || documentNumber.equals("12345678901") || documentNumber.equals("98765432100"))) {
+            // documentType pode ser null em testes de validação, então verificar antes de usar
+            if (documentType == null) {
+                documentType = "CPF"; // Default para evitar erro no switch
+            }
+            switch (documentType) {
+                case "CPF":
+                    documentNumber = com.nulote.journey.fixtures.TestDataGenerator.generateUniqueCpf();
+                    break;
+                case "CNPJ":
+                    documentNumber = com.nulote.journey.fixtures.TestDataGenerator.generateUniqueCnpj();
+                    break;
+                case "CUIT":
+                    documentNumber = com.nulote.journey.fixtures.TestDataGenerator.generateUniqueCuit();
+                    break;
+                case "DNI":
+                    documentNumber = com.nulote.journey.fixtures.TestDataGenerator.generateUniqueDni();
+                    break;
+                case "RUT":
+                    documentNumber = com.nulote.journey.fixtures.TestDataGenerator.generateUniqueRut();
+                    break;
+                case "CI":
+                    documentNumber = com.nulote.journey.fixtures.TestDataGenerator.generateUniqueCi();
+                    break;
+                case "SSN":
+                    documentNumber = com.nulote.journey.fixtures.TestDataGenerator.generateUniqueSsn();
+                    break;
+                default:
+                    // Para tipos não suportados (ex: PASSPORT), não gerar documento
+                    // Deixar que o backend valide e retorne erro apropriado
+                    // Não lançar exceção aqui - permitir que teste de validação funcione
+                    org.slf4j.LoggerFactory.getLogger(AuthenticationSteps.class)
+                        .warn("Tipo de documento não suportado para geração automática: {}. Deixando valor original para validação pelo backend.", documentType);
+                    break;
+            }
+            if (documentNumber != null) {
+                userData.put("documentNumber", documentNumber);
+                org.slf4j.LoggerFactory.getLogger(AuthenticationSteps.class)
+                    .debug("DocumentNumber substituído por valor único: {} (tipo: {})", documentNumber, documentType);
+            }
         }
         
         // Se email é um valor comum de teste, gerar um único
@@ -121,6 +292,45 @@ public class AuthenticationSteps {
             org.slf4j.LoggerFactory.getLogger(AuthenticationSteps.class)
                 .debug("Email substituído por valor único: {}", email);
         }
+        
+        // NORMALIZAÇÃO FINAL: Garantir que documentType seja sempre uppercase antes de salvar
+        // Isso garante que valores do Examples do Cucumber ou qualquer outro lugar sejam normalizados
+        String finalDocumentType = userData.get("documentType");
+        logger.debug("NORMALIZAÇÃO FINAL - documentType antes: '{}' (null? {}, empty? {}, startsWith{{? {})", 
+            finalDocumentType, finalDocumentType == null, 
+            finalDocumentType != null && finalDocumentType.trim().isEmpty(),
+            finalDocumentType != null && finalDocumentType.startsWith("{"));
+        
+        if (finalDocumentType != null && !finalDocumentType.trim().isEmpty() && !finalDocumentType.startsWith("{")) {
+            String originalFinalDocumentType = finalDocumentType;
+            finalDocumentType = finalDocumentType.toUpperCase().trim();
+            userData.put("documentType", finalDocumentType);
+            logger.debug("NORMALIZAÇÃO FINAL - DocumentType normalizado de '{}' para '{}'", originalFinalDocumentType, finalDocumentType);
+            
+            // Validar que o documentType está na lista aceita pelo backend
+            String[] validTypes = {"CPF", "CNPJ", "CUIT", "DNI", "RUT", "CI", "SSN"};
+            boolean isValid = false;
+            for (String validType : validTypes) {
+                if (validType.equals(finalDocumentType)) {
+                    isValid = true;
+                    break;
+                }
+            }
+            
+            if (!isValid) {
+                logger.error("❌ DocumentType '{}' não está na lista de tipos aceitos pelo backend: CPF, CNPJ, CUIT, DNI, RUT, CI, SSN", finalDocumentType);
+                logger.error("❌ O teste falhará com erro de validação. Verifique o feature file.");
+            }
+        } else {
+            logger.warn("NORMALIZAÇÃO FINAL - DocumentType não foi normalizado! Valor: '{}' (null? {}, empty? {}, placeholder? {})", 
+                finalDocumentType, finalDocumentType == null,
+                finalDocumentType != null && finalDocumentType.trim().isEmpty(),
+                finalDocumentType != null && finalDocumentType.startsWith("{"));
+        }
+        
+        // Log final de todos os dados antes de salvar
+        logger.debug("Dados finais antes de salvar no fixture: documentNumber='{}', documentType='{}', email='{}'", 
+            userData.get("documentNumber"), userData.get("documentType"), userData.get("email"));
         
         userFixture.setUserData(userData);
     }
@@ -137,45 +347,46 @@ public class AuthenticationSteps {
         userFixture.setUserData(userData);
     }
     
-    @Quando("eu tento criar um novo usuário com o mesmo CPF:")
-    public void eu_tento_criar_um_novo_usuario_com_o_mesmo_cpf(io.cucumber.datatable.DataTable dataTable) {
-        // IMPORTANTE: dataTable.asMap() retorna um UnmodifiableMap, então precisamos criar um novo HashMap mutável
-        var immutableUserData = dataTable.asMap(String.class, String.class);
-        var userData = new java.util.HashMap<String, String>(immutableUserData);
+    @Quando("eu tento criar um novo usuário com o mesmo documento:")
+    public void eu_tento_criar_um_novo_usuario_com_o_mesmo_documento(io.cucumber.datatable.DataTable dataTable) {
+        var originalData = dataTable.asMap(String.class, String.class);
+        var userData = new java.util.HashMap<String, String>(originalData);
+        
+        // Processar placeholders
+        processarPlaceholders(userData);
+        
+        // SEMPRE verificar se há um documento válido armazenado no userFixture (gerado no step "que já existe um usuário com documento")
+        // e usar esse documento válido em vez do documento fornecido na tabela
+        // Isso garante que o teste de duplicado funcione mesmo quando o documento fornecido é inválido
+        String providedDocumentNumber = userData.get("documentNumber");
+        String providedDocumentType = userData.get("documentType");
+        var existingData = userFixture.getUserData();
         var logger = org.slf4j.LoggerFactory.getLogger(AuthenticationSteps.class);
         
-        // SEMPRE verificar se há um CPF válido armazenado no userFixture (gerado no step "que já existe um usuário com CPF")
-        // e usar esse CPF válido em vez do CPF fornecido na tabela
-        // Isso garante que o teste de duplicado funcione mesmo quando o CPF fornecido é inválido
-        String providedCpf = userData.get("cpf");
-        var existingData = userFixture.getUserData();
+        // Validar que documentNumber e documentType estão presentes
+        if (providedDocumentNumber == null || providedDocumentType == null) {
+            throw new IllegalStateException("É necessário fornecer 'documentNumber' e 'documentType' nos dados do usuário");
+        }
         
-        if (existingData != null && existingData.containsKey("cpf")) {
-            String existingCpf = existingData.get("cpf");
-            // Validar se o CPF existente é válido
-            if (existingCpf != null && existingCpf.length() == 11 && 
-                com.nulote.journey.fixtures.TestDataGenerator.isValidCpf(existingCpf)) {
-                // Sempre usar o CPF válido do userFixture para garantir consistência
-                if (!existingCpf.equals(providedCpf)) {
-                    logger.info("CPF fornecido '{}' será substituído pelo CPF válido '{}' do userFixture para teste de duplicado.", 
-                        providedCpf, existingCpf);
+        if (existingData != null && existingData.containsKey("documentNumber") && existingData.containsKey("documentType")) {
+            String existingDocumentNumber = existingData.get("documentNumber");
+            String existingDocumentType = existingData.get("documentType");
+            
+            if (existingDocumentNumber != null && existingDocumentType != null) {
+                // Sempre usar o documento válido do userFixture para garantir consistência
+                if (!existingDocumentNumber.equals(providedDocumentNumber)) {
+                    logger.info("DocumentNumber fornecido '{}' será substituído pelo documento válido '{}' (tipo: {}) do userFixture para teste de duplicado.", 
+                        providedDocumentNumber, existingDocumentNumber, existingDocumentType);
                 }
-                userData.put("cpf", existingCpf);
-            } else {
-                logger.warn("CPF existente no userFixture '{}' não é válido. Usando CPF fornecido '{}'.", 
-                    existingCpf, providedCpf);
-            }
-        } else {
-            // Se não há CPF no userFixture, validar o CPF fornecido
-            if (providedCpf != null && providedCpf.length() == 11) {
-                if (!com.nulote.journey.fixtures.TestDataGenerator.isValidCpf(providedCpf)) {
-                    logger.warn("CPF fornecido '{}' tem dígitos verificadores inválidos. O teste pode falhar na validação do backend.", 
-                        providedCpf);
-                }
+                userData.put("documentNumber", existingDocumentNumber);
+                userData.put("documentType", existingDocumentType);
             }
         }
         
         userFixture.setUserData(userData);
+        
+        // Continuar com o processo de criação
+        criarUsuarioComDadosDoFixture();
     }
     
     @Quando("eu valido o reCAPTCHA")
@@ -570,20 +781,48 @@ public class AuthenticationSteps {
             AllureHelper.attachText("Criando OTP e sessionToken automaticamente (API exige registration-token)");
             
             try {
+                // Garantir que email está presente antes de solicitar OTP
+                var userData = userFixture.getUserData();
+                if (userData == null) {
+                    logger.error("❌ userData é null. Não é possível criar OTP.");
+                    throw new IllegalStateException("userData é null. Não é possível criar OTP para registro.");
+                }
+                
+                String email = userData.get("email");
+                // CORREÇÃO: Para testes de validação que esperam falha, permitir email inválido
+                // O backend deve validar, não o código de teste
+                // Mas não tentar criar OTP se o email for claramente inválido (placeholder não processado)
+                if (email == null || email.trim().isEmpty() || email.startsWith("{")) {
+                    logger.warn("⚠️ Email não está presente ou é placeholder não processado. Email: '{}'", email);
+                    logger.warn("⚠️ Não é possível criar OTP sem email válido. O teste pode falhar na criação do usuário.");
+                    throw new IllegalStateException("Email não está presente ou é placeholder não processado. Email: " + email);
+                }
+                
+                // Se o email não contém @, pode ser um teste de validação - permitir mas logar
+                if (!email.contains("@")) {
+                    logger.warn("⚠️ Email não contém '@' (pode ser teste de validação). Email: '{}'", email);
+                    logger.warn("⚠️ Tentando criar OTP mesmo assim - o backend deve validar.");
+                }
+                
+                logger.info("✅ Email encontrado. Solicitando OTP para email: {}", email);
+                
                 // Solicitar OTP para registro
                 var otpRequest = userFixture.buildOtpRequest("EMAIL", "REGISTRATION");
+                logger.info("🔍 [DEBUG] OTP Request: {}", otpRequest);
                 var otpResponse = authClient.requestOtp(otpRequest);
+                logger.info("🔍 [DEBUG] OTP Response status: {}", otpResponse.getStatusCode());
                 
                 // Se a solicitação de OTP falhar (ex: email inválido), armazenar resposta e retornar
                 // Permitir que o teste valide o erro apropriado (não tentar criar usuário)
                 if (otpResponse.getStatusCode() != 200) {
-                    logger.warn("Solicitação de OTP falhou com status {}. Resposta: {}", 
-                        otpResponse.getStatusCode(), otpResponse.getBody().asString());
-                    // Armazenar resposta para que o teste possa validar o erro
+                    logger.warn("⚠️ Solicitação de OTP falhou com status {}. Body: {}", 
+                        otpResponse.getStatusCode(),
+                        otpResponse.getBody() != null ? otpResponse.getBody().asString() : "null");
+                    // Para testes de validação que esperam falha na solicitação de OTP, armazenar resposta
+                    // e permitir que o teste valide o erro
                     lastResponse = otpResponse;
                     AllureHelper.attachHttpResponse(lastResponse, "solicitar OTP (falhou)");
-                    // Retornar sem tentar criar usuário - o teste validará o erro
-                    return;
+                    return; // Não tentar criar usuário se OTP falhou
                 }
                 
                 // Obter OTP ID
@@ -595,7 +834,9 @@ public class AuthenticationSteps {
                 
                 // Obter código OTP do endpoint de teste
                 String otpCode = null;
+                logger.info("🔍 [DEBUG] Obtendo código OTP para otpId: {}", otpId);
                 var testCodeResponse = authClient.getTestOtpCode(otpId);
+                logger.info("🔍 [DEBUG] Test OTP Code Response status: {}", testCodeResponse.getStatusCode());
                 if (testCodeResponse.getStatusCode() == 200) {
                     otpCode = testCodeResponse.jsonPath().getString("code");
                     if (otpCode == null) {
@@ -605,20 +846,36 @@ public class AuthenticationSteps {
                         otpCode = otpCode.replaceAll("[^0-9]", "");
                         if (otpCode.length() == 6) {
                             userFixture.setOtpCode(otpCode);
+                            logger.info("✅ Código OTP obtido: {}***", otpCode.substring(0, 2));
+                        } else {
+                            logger.warn("⚠️ Código OTP obtido mas não tem 6 dígitos: '{}' (length: {})", otpCode, otpCode.length());
                         }
+                    } else {
+                        logger.warn("⚠️ Código OTP não encontrado na resposta. Body: {}", 
+                            testCodeResponse.getBody() != null ? testCodeResponse.getBody().asString() : "null");
                     }
+                } else {
+                    logger.warn("⚠️ Falha ao obter código OTP. Status: {}, Body: {}", 
+                        testCodeResponse.getStatusCode(),
+                        testCodeResponse.getBody() != null ? testCodeResponse.getBody().asString() : "null");
                 }
                 
                 if (otpCode == null || otpCode.length() != 6) {
+                    logger.error("❌ Não foi possível obter código OTP automaticamente. otpCode: '{}'", otpCode);
                     throw new IllegalStateException(
                         "Não foi possível obter código OTP automaticamente. Execute 'eu valido o OTP informando \"XXXXXX\"' com o código do email.");
                 }
                 
                 // Validar OTP para obter sessionToken
+                logger.info("🔍 [DEBUG] Validando OTP com código: {}***", otpCode.substring(0, 2));
                 var validationRequest = userFixture.buildOtpValidationRequest(otpCode);
                 var validationResponse = authClient.validateOtp(validationRequest);
+                logger.info("🔍 [DEBUG] OTP Validation Response status: {}", validationResponse.getStatusCode());
                 
                 if (validationResponse.getStatusCode() != 200) {
+                    logger.error("❌ Falha ao validar OTP. Status: {}, Body: {}", 
+                        validationResponse.getStatusCode(),
+                        validationResponse.getBody() != null ? validationResponse.getBody().asString() : "null");
                     throw new IllegalStateException("Falha ao validar OTP: " + 
                         validationResponse.getBody().asString());
                 }
@@ -626,28 +883,53 @@ public class AuthenticationSteps {
                 // Extrair sessionToken
                 sessionToken = validationResponse.jsonPath().getString("sessionToken");
                 if (sessionToken == null || sessionToken.trim().isEmpty()) {
+                    logger.error("❌ SessionToken não foi retornado na validação de OTP. Body: {}", 
+                        validationResponse.getBody() != null ? validationResponse.getBody().asString() : "null");
                     throw new IllegalStateException("SessionToken não foi retornado na validação de OTP");
                 }
                 userFixture.setSessionToken(sessionToken);
                 
-                logger.info("✅ OTP criado e validado. SessionToken obtido: {}...", 
-                    sessionToken.substring(0, Math.min(8, sessionToken.length())));
+                logger.info("✅ OTP criado e validado. SessionToken obtido: {}... (length: {})", 
+                    sessionToken.substring(0, Math.min(8, sessionToken.length())), sessionToken.length());
                 AllureHelper.attachText("SessionToken obtido automaticamente: " + 
                     sessionToken.substring(0, Math.min(8, sessionToken.length())) + "...");
             } catch (Exception e) {
-                logger.error("Erro ao criar OTP e sessionToken automaticamente: {}", e.getMessage(), e);
+                logger.error("❌ Erro ao criar OTP e sessionToken automaticamente: {}", e.getMessage(), e);
+                logger.error("❌ Stack trace completo:", e);
                 throw new IllegalStateException(
                     "Não foi possível criar usuário: API exige registration-token (sessionToken) obtido após validação de OTP. " +
                     "Erro: " + e.getMessage(), e);
             }
         }
         
+        // Verificar novamente se sessionToken está presente antes de criar usuário
+        if (sessionToken == null || sessionToken.trim().isEmpty()) {
+            var logger = org.slf4j.LoggerFactory.getLogger(AuthenticationSteps.class);
+            logger.error("❌ CRÍTICO: SessionToken ainda está null ou vazio após tentativa de criação automática!");
+            logger.error("❌ Isso não deveria acontecer. Verifique o fluxo de criação de OTP.");
+            throw new IllegalStateException(
+                "SessionToken não está disponível e não foi possível criar automaticamente. " +
+                "Verifique os logs anteriores para mais detalhes.");
+        }
+        
         // Criar usuário com sessionToken
         AllureHelper.attachText("Usando sessionToken: " + sessionToken.substring(0, Math.min(8, sessionToken.length())) + "...");
         lastResponse = identityClient.createUser(request, sessionToken);
         
-        // IMPORTANTE: Limpar sessionToken após uso (é de uso único e não pode ser reutilizado)
-        userFixture.setSessionToken(null);
+        // IMPORTANTE: Limpar sessionToken apenas se a criação foi bem-sucedida (201 ou 200)
+        // Se retornar 409 (duplicado), manter sessionToken para permitir retry com novos dados
+        // O retry criará um novo OTP e sessionToken, então não há problema em manter o antigo temporariamente
+        if (lastResponse != null && (lastResponse.getStatusCode() == 201 || lastResponse.getStatusCode() == 200)) {
+            // Limpar sessionToken após uso bem-sucedido (é de uso único e não pode ser reutilizado)
+            userFixture.setSessionToken(null);
+        } else if (lastResponse != null && lastResponse.getStatusCode() == 409) {
+            // Para 409, manter sessionToken temporariamente - o retry criará um novo
+            var logger = org.slf4j.LoggerFactory.getLogger(AuthenticationSteps.class);
+            logger.debug("Mantendo sessionToken temporariamente para permitir retry (409 duplicado)");
+        } else {
+            // Para outros erros, limpar sessionToken (não será reutilizado)
+            userFixture.setSessionToken(null);
+        }
         
         // Anexar resposta HTTP ao Allure para debugging
         AllureHelper.attachHttpResponse(lastResponse, "criar identidade");
@@ -656,26 +938,61 @@ public class AuthenticationSteps {
     @Então("a identidade deve ser criada com sucesso")
     public void a_identidade_deve_ser_criada_com_sucesso() {
         AllureHelper.step("Validando criação de identidade");
-        // Obter sessionToken se disponível (para requisições com OTP)
-        String sessionToken = userFixture.getSessionToken();
-        boolean useSessionToken = sessionToken != null && !sessionToken.trim().isEmpty();
         
-        // IMPORTANTE: Se há sessionToken, não podemos fazer retry porque o token é consumido na primeira validação
-        // O sessionToken só pode ser usado UMA vez. 
-        // Para testes de simulate-provider, se houver erro 409 (CPF duplicado), isso pode ser esperado se o teste
-        // anterior não limpou os dados. Vamos tentar gerar novos dados únicos uma vez antes de falhar.
-        if (useSessionToken && lastResponse != null && lastResponse.getStatusCode() == 409) {
+        // CORREÇÃO: Se houver erro 409 (duplicado), tentar retry mesmo se sessionToken foi limpo
+        // O sessionToken pode ter sido limpo após o primeiro uso, mas ainda podemos fazer retry
+        // criando um novo OTP e sessionToken
+        if (lastResponse != null && lastResponse.getStatusCode() == 409) {
             var logger = org.slf4j.LoggerFactory.getLogger(AuthenticationSteps.class);
-            logger.warn("CPF duplicado detectado (409) com sessionToken. Tentando gerar novos dados únicos uma vez...");
+            logger.warn("⚠️ Documento duplicado detectado (409). Tentando gerar novos dados únicos e criar novo OTP/sessionToken...");
             
             // Tentar gerar novos dados únicos e criar novamente (apenas uma vez)
             var userData = new java.util.HashMap<String, String>();
             userData.put("nome", com.nulote.journey.fixtures.TestDataGenerator.generateUniqueName());
-            userData.put("cpf", com.nulote.journey.fixtures.TestDataGenerator.generateUniqueCpf());
+            // CORREÇÃO CRÍTICA: Usar o gerador correto baseado no documentType
+            var existingData = userFixture.getUserData();
+            String documentType = existingData != null && existingData.containsKey("documentType") ? 
+                existingData.get("documentType") : "CPF";
+            
+            // Gerar documentNumber baseado no documentType
+            String documentNumber;
+            switch (documentType != null ? documentType.toUpperCase() : "CPF") {
+                case "CPF":
+                    documentNumber = com.nulote.journey.fixtures.TestDataGenerator.generateUniqueCpf();
+                    break;
+                case "CNPJ":
+                    documentNumber = com.nulote.journey.fixtures.TestDataGenerator.generateUniqueCnpj();
+                    break;
+                case "CUIT":
+                    documentNumber = com.nulote.journey.fixtures.TestDataGenerator.generateUniqueCuit();
+                    break;
+                case "DNI":
+                    documentNumber = com.nulote.journey.fixtures.TestDataGenerator.generateUniqueDni();
+                    break;
+                case "RUT":
+                    documentNumber = com.nulote.journey.fixtures.TestDataGenerator.generateUniqueRut();
+                    break;
+                case "CI":
+                    documentNumber = com.nulote.journey.fixtures.TestDataGenerator.generateUniqueCi();
+                    break;
+                case "SSN":
+                    documentNumber = com.nulote.journey.fixtures.TestDataGenerator.generateUniqueSsn();
+                    break;
+                default:
+                    logger.warn("⚠️ documentType '{}' não reconhecido, usando CPF como fallback", documentType);
+                    documentNumber = com.nulote.journey.fixtures.TestDataGenerator.generateUniqueCpf();
+                    documentType = "CPF";
+                    break;
+            }
+            
+            userData.put("documentNumber", documentNumber);
+            userData.put("documentType", documentType);
             userData.put("email", com.nulote.journey.fixtures.TestDataGenerator.generateUniqueEmail());
             userData.put("telefone", com.nulote.journey.fixtures.TestDataGenerator.generateUniquePhone());
             userData.put("password", "TestPassword123!");
             userFixture.setUserData(userData);
+            
+            logger.info("🔄 [RETRY] Gerados novos dados únicos - documentType: {}, documentNumber: {}", documentType, documentNumber);
             
             // Limpar sessionToken e criar novo OTP
             userFixture.setSessionToken(null);
@@ -772,7 +1089,12 @@ public class AuthenticationSteps {
             // Gerar novos dados únicos
             var userData = new java.util.HashMap<String, String>();
             userData.put("nome", com.nulote.journey.fixtures.TestDataGenerator.generateUniqueName());
-            userData.put("cpf", com.nulote.journey.fixtures.TestDataGenerator.generateUniqueCpf());
+            // Usar documentNumber/documentType em vez de cpf
+            var existingData = userFixture.getUserData();
+            String documentType = existingData != null && existingData.containsKey("documentType") ? 
+                existingData.get("documentType") : "CPF";
+            userData.put("documentNumber", com.nulote.journey.fixtures.TestDataGenerator.generateUniqueCpf());
+            userData.put("documentType", documentType);
             userData.put("email", com.nulote.journey.fixtures.TestDataGenerator.generateUniqueEmail());
             userData.put("telefone", com.nulote.journey.fixtures.TestDataGenerator.generateUniquePhone());
             userData.put("password", "TestPassword123!");
@@ -1085,9 +1407,41 @@ public class AuthenticationSteps {
     @Dado("que crio um usuário com esses dados")
     public void que_crio_um_usuario_com_esses_dados() {
         // Gerar dados únicos e inicializar no fixture
+        // Determinar tipo de documento baseado no país configurado
+        String countryCode = config != null ? config.getDefaultCountryCode() : "BR";
+        String documentType;
+        String documentNumber;
+        
+        switch (countryCode) {
+            case "BR":
+                documentType = "CPF";
+                documentNumber = com.nulote.journey.fixtures.TestDataGenerator.generateUniqueCpf();
+                break;
+            case "AR":
+                documentType = "CUIT";
+                documentNumber = com.nulote.journey.fixtures.TestDataGenerator.generateUniqueCuit();
+                break;
+            case "CL":
+                documentType = "RUT";
+                documentNumber = com.nulote.journey.fixtures.TestDataGenerator.generateUniqueRut();
+                break;
+            case "BO":
+                documentType = "CI";
+                documentNumber = com.nulote.journey.fixtures.TestDataGenerator.generateUniqueCi();
+                break;
+            case "US":
+                documentType = "SSN";
+                documentNumber = com.nulote.journey.fixtures.TestDataGenerator.generateUniqueSsn();
+                break;
+            default:
+                documentType = "CPF";
+                documentNumber = com.nulote.journey.fixtures.TestDataGenerator.generateUniqueCpf();
+        }
+        
         var userData = new java.util.HashMap<String, String>();
         userData.put("nome", com.nulote.journey.fixtures.TestDataGenerator.generateUniqueName());
-        userData.put("cpf", com.nulote.journey.fixtures.TestDataGenerator.generateUniqueCpf());
+        userData.put("documentNumber", documentNumber);
+        userData.put("documentType", documentType);
         userData.put("email", com.nulote.journey.fixtures.TestDataGenerator.generateUniqueEmail());
         userData.put("telefone", com.nulote.journey.fixtures.TestDataGenerator.generateUniquePhone());
         userData.put("password", "TestPassword123!");
@@ -1104,11 +1458,86 @@ public class AuthenticationSteps {
         var userData = new java.util.HashMap<String, String>(originalData);
         
         // Processar placeholders como {unique_cpf}, {unique_email}, etc.
-        processarPlaceholders(userData);
+        // Processar múltiplas vezes para garantir que todos os placeholders foram substituídos
+        boolean hasPlaceholders = true;
+        int maxIterations = 3;
+        int iterations = 0;
+        while (hasPlaceholders && iterations < maxIterations) {
+            hasPlaceholders = false;
+            for (String value : userData.values()) {
+                if (value != null && value.startsWith("{") && value.endsWith("}")) {
+                    hasPlaceholders = true;
+                    break;
+                }
+            }
+            if (hasPlaceholders) {
+                processarPlaceholders(userData);
+                iterations++;
+            }
+        }
+        
+        // Garantir que documentNumber e documentType estão presentes e não são placeholders
+        String documentNumber = userData.get("documentNumber");
+        String documentType = userData.get("documentType");
+        if (documentNumber == null || documentNumber.trim().isEmpty() || documentNumber.startsWith("{")) {
+            // Se não foi fornecido, gerar baseado no país configurado ou usar CPF como padrão
+            String countryCode = config != null ? config.getDefaultCountryCode() : "BR";
+            
+            // Determinar tipo de documento baseado no país
+            switch (countryCode) {
+                case "BR":
+                    documentType = documentType != null && !documentType.startsWith("{") ? documentType : "CPF";
+                    documentNumber = com.nulote.journey.fixtures.TestDataGenerator.generateUniqueCpf();
+                    break;
+                case "AR":
+                    documentType = documentType != null && !documentType.startsWith("{") ? documentType : "CUIT";
+                    documentNumber = com.nulote.journey.fixtures.TestDataGenerator.generateUniqueCuit();
+                    break;
+                case "CL":
+                    documentType = documentType != null && !documentType.startsWith("{") ? documentType : "RUT";
+                    documentNumber = com.nulote.journey.fixtures.TestDataGenerator.generateUniqueRut();
+                    break;
+                case "BO":
+                    documentType = documentType != null && !documentType.startsWith("{") ? documentType : "CI";
+                    documentNumber = com.nulote.journey.fixtures.TestDataGenerator.generateUniqueCi();
+                    break;
+                case "US":
+                    documentType = documentType != null && !documentType.startsWith("{") ? documentType : "SSN";
+                    documentNumber = com.nulote.journey.fixtures.TestDataGenerator.generateUniqueSsn();
+                    break;
+                default:
+                    documentType = "CPF";
+                    documentNumber = com.nulote.journey.fixtures.TestDataGenerator.generateUniqueCpf();
+            }
+            userData.put("documentNumber", documentNumber);
+            userData.put("documentType", documentType);
+        }
+        
+        // Garantir que email e telefone estão presentes
+        String email = userData.get("email");
+        String telefone = userData.get("telefone");
+        if (email == null || email.trim().isEmpty() || email.startsWith("{") || !email.contains("@")) {
+            email = com.nulote.journey.fixtures.TestDataGenerator.generateUniqueEmail();
+            userData.put("email", email);
+        }
+        if (telefone == null || telefone.trim().isEmpty() || telefone.startsWith("{") || !telefone.startsWith("+")) {
+            telefone = com.nulote.journey.fixtures.TestDataGenerator.generateUniquePhone();
+            userData.put("telefone", telefone);
+        }
         
         // Se password não foi fornecido, usar padrão
         if (!userData.containsKey("password") || userData.get("password") == null || userData.get("password").trim().isEmpty()) {
             userData.put("password", "TestPassword123!");
+        }
+        
+        // NORMALIZAÇÃO FINAL: Garantir que documentType seja sempre uppercase antes de salvar
+        // Isso garante que valores do Examples do Cucumber ou qualquer outro lugar sejam normalizados
+        String finalDocumentType = userData.get("documentType");
+        if (finalDocumentType != null && !finalDocumentType.trim().isEmpty() && !finalDocumentType.startsWith("{")) {
+            finalDocumentType = finalDocumentType.toUpperCase().trim();
+            userData.put("documentType", finalDocumentType);
+            var logger = org.slf4j.LoggerFactory.getLogger(AuthenticationSteps.class);
+            logger.debug("DocumentType normalizado para uppercase em que_crio_um_usuario_com_esses_dados: '{}'", finalDocumentType);
         }
         
         userFixture.setUserData(userData);
@@ -1118,20 +1547,52 @@ public class AuthenticationSteps {
     }
     
     /**
-     * Processa placeholders nos dados do usuário (ex: {unique_cpf}, {unique_email}).
+     * Processa placeholders nos dados do usuário (ex: {unique_cpf}, {unique_email}, {unique_cnpj}, etc.).
      */
     private void processarPlaceholders(java.util.Map<String, String> userData) {
         for (Map.Entry<String, String> entry : userData.entrySet()) {
             String value = entry.getValue();
-            if (value != null && value.startsWith("{") && value.endsWith("}")) {
-                String placeholder = value.substring(1, value.length() - 1).toLowerCase();
+            if (value != null) {
+                // CORREÇÃO CRÍTICA: Remover aspas duplas antes de verificar se é placeholder
+                // Feature file pode ter "{unique_cpf}" com aspas
+                String trimmedValue = value.trim();
+                if (trimmedValue.startsWith("\"") && trimmedValue.endsWith("\"")) {
+                    trimmedValue = trimmedValue.substring(1, trimmedValue.length() - 1).trim();
+                }
                 
-                switch (placeholder) {
+                if (trimmedValue.startsWith("{") && trimmedValue.endsWith("}")) {
+                    String placeholder = trimmedValue.substring(1, trimmedValue.length() - 1).toLowerCase();
+                    
+                    switch (placeholder) {
                     case "unique_cpf":
                     case "unique_cpf_br":
                     case "unique_cpf_ar":
                     case "unique_cpf_cl":
                         userData.put(entry.getKey(), com.nulote.journey.fixtures.TestDataGenerator.generateUniqueCpf());
+                        break;
+                    case "unique_cnpj":
+                    case "unique_cnpj_br":
+                        userData.put(entry.getKey(), com.nulote.journey.fixtures.TestDataGenerator.generateUniqueCnpj());
+                        break;
+                    case "unique_cuit":
+                    case "unique_cuit_ar":
+                        userData.put(entry.getKey(), com.nulote.journey.fixtures.TestDataGenerator.generateUniqueCuit());
+                        break;
+                    case "unique_dni":
+                    case "unique_dni_ar":
+                        userData.put(entry.getKey(), com.nulote.journey.fixtures.TestDataGenerator.generateUniqueDni());
+                        break;
+                    case "unique_rut":
+                    case "unique_rut_cl":
+                        userData.put(entry.getKey(), com.nulote.journey.fixtures.TestDataGenerator.generateUniqueRut());
+                        break;
+                    case "unique_ci":
+                    case "unique_ci_bo":
+                        userData.put(entry.getKey(), com.nulote.journey.fixtures.TestDataGenerator.generateUniqueCi());
+                        break;
+                    case "unique_ssn":
+                    case "unique_ssn_us":
+                        userData.put(entry.getKey(), com.nulote.journey.fixtures.TestDataGenerator.generateUniqueSsn());
                         break;
                     case "unique_email":
                     case "unique_email_br":
@@ -1145,9 +1606,23 @@ public class AuthenticationSteps {
                     case "unique_phone_cl":
                         userData.put(entry.getKey(), com.nulote.journey.fixtures.TestDataGenerator.generateUniquePhone());
                         break;
+                    case "same_document":
+                        // Usar o mesmo documento que foi usado anteriormente (armazenado no userFixture)
+                        var existingData = userFixture.getUserData();
+                        if (existingData != null && existingData.containsKey("documentNumber")) {
+                            userData.put(entry.getKey(), existingData.get("documentNumber"));
+                        } else {
+                            throw new IllegalStateException("Não foi possível encontrar documentNumber anterior para {same_document}");
+                        }
+                        break;
+                    case "unique_cpf_2":
+                        // Gerar um segundo CPF único (para testes de alteração)
+                        userData.put(entry.getKey(), com.nulote.journey.fixtures.TestDataGenerator.generateUniqueCpf());
+                        break;
                     default:
                         // Se não for um placeholder conhecido, manter o valor original
                         break;
+                    }
                 }
             }
         }
@@ -1238,8 +1713,12 @@ public class AuthenticationSteps {
                 .warn("CPF duplicado detectado (409), tentativa {}/{}. Gerando novos dados únicos e novo OTP...", retries, maxRetries);
             
             // Gerar novos dados únicos
+            var existingData = userFixture.getUserData();
+            String documentType = existingData != null && existingData.containsKey("documentType") ? 
+                existingData.get("documentType") : "CPF";
             userData.put("nome", com.nulote.journey.fixtures.TestDataGenerator.generateUniqueName());
-            userData.put("cpf", com.nulote.journey.fixtures.TestDataGenerator.generateUniqueCpf());
+            userData.put("documentNumber", com.nulote.journey.fixtures.TestDataGenerator.generateUniqueCpf());
+            userData.put("documentType", documentType);
             userData.put("email", com.nulote.journey.fixtures.TestDataGenerator.generateUniqueEmail());
             userData.put("telefone", com.nulote.journey.fixtures.TestDataGenerator.generateUniquePhone());
             userFixture.setUserData(userData);

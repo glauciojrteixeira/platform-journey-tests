@@ -31,9 +31,10 @@ Feature: Atualização de Perfil
   Scenario: Tentativa de alterar dados de segurança via perfil
     Given que consulto meu perfil atual
     When eu tento alterar dados de segurança:
-      | campo  | valor              |
-      | email  | novo@email.com     |
-      | cpf    | 12345678901        |
+      | campo           | valor              |
+      | email           | novo@email.com     |
+      | documentNumber  | {unique_cpf_2}     |
+      | documentType    | CPF                |
     Then a atualização deve falhar com status 400
     And o erro deve indicar que dados de segurança não podem ser alterados via perfil
 

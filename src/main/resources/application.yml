@@ -39,7 +39,8 @@ rabbitmq:
   username: guest
   password: guest
   # Multi-Country: Virtual Host baseado no país (conforme refatoração multi-country)
-  # Em desenvolvimento local, pode ser "/" (padrão) ou "/br" dependendo da configuração dos serviços
-  # Em produção, usa "/br", "/ar", "/cl", "/bo" conforme país
-  virtual-host: ${RABBITMQ_VIRTUAL_HOST:/}  # Default: "/" (root), pode ser "/br" para multi-country
+  # Em desenvolvimento local/low env: usa "/br" (país padrão) - um único broker para um país
+  # Em produção: pode usar "/br", "/ar", "/cl", "/bo" conforme país
+  # Pode ser sobrescrito via variável de ambiente: RABBITMQ_VIRTUAL_HOST=/br
+  virtual-host: ${RABBITMQ_VIRTUAL_HOST:/br}  # Default: "/br" para local/low env (país padrão BR)
 

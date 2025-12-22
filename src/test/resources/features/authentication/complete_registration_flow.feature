@@ -13,11 +13,12 @@ Feature: Fluxo Completo de Registro com OTP
   Scenario: Registro completo com OTP via EMAIL (com simulação)
     Given que estou na tela de registro
     When eu informo:
-      | campo      | valor                    |
-      | nome       | João Silva               |
-      | cpf        | 11144477735              |
-      | email      | joao.silva@example.com   |
-      | telefone   | +5511999998888           |
+      | campo           | valor                    |
+      | nome            | João Silva               |
+      | documentNumber  | {unique_cpf}             |
+      | documentType    | CPF                      |
+      | email           | joao.silva@example.com   |
+      | telefone        | +5511999998888           |
     And eu solicito OTP via "EMAIL" para "REGISTRATION"
     Then a solicitação de OTP deve retornar status 200
     And o código OTP deve estar presente na resposta

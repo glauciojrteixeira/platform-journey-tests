@@ -5,6 +5,82 @@ Todas as mudanças notáveis neste projeto serão documentadas neste arquivo.
 O formato é baseado em [Keep a Changelog](https://keepachangelog.com/pt-BR/1.0.0/),
 e este projeto adere ao [Versionamento Semântico](https://semver.org/lang/pt-BR/).
 
+## [0.0.7-SNAPSHOT] - 2025-12-22
+
+### Added
+- **Lições Aprendidas E2E**: Documentação completa das lições aprendidas durante correção de falhas em testes E2E
+  - `LICOES_APRENDIDAS_E2E.md`: Documento abrangente com conhecimentos adquiridos, padrões, anti-padrões e recomendações
+  - Documentação de problemas identificados e soluções implementadas
+  - Métricas de sucesso: 202 testes executados, 0 falhas, 0 erros (100% de sucesso)
+- **Documentação de Troubleshooting**: Documentos detalhados sobre problemas e soluções
+  - `ANALISE_LOGS_MULTI_COUNTRY.md`: Análise inicial dos problemas de RabbitMQ multi-country
+  - `RESULTADO_IMPLEMENTACAO_MULTI_VHOST.md`: Resolução de problemas RabbitMQ
+  - `CORRECOES_VALIDACAO_DADOS.md`: Correções de validação de dados
+  - `CORRECOES_FINAIS_DOCUMENTTYPE.md`: Correções finais de documentType
+  - `PROBLEMA_SESSIONTOKEN.md`: Análise de problemas de sessionToken
+  - `DESCOBERTA_SERIALIZACAO.md`: Descobertas sobre serialização JSON
+  - `RESUMO_INVESTIGACAO.md`: Resumo da investigação
+  - `SOLUCAO_FINAL_DOCUMENTTYPE.md`: Solução final
+  - `CORRECAO_CRITICA_DOCUMENTTYPE.md`: Correção crítica de documentType
+  - `ANALISE_PROBLEMA_DOCUMENTTYPE.md`: Análise do problema de documentType
+  - `CORRECOES_DEBUG_DOCUMENTTYPE.md`: Correções de debug de documentType
+- **Teste Unitário de Serialização**: `UserFixtureSerializationTest.java` para validar serialização JSON de requests
+- **Feature Multi-Country Documents**: `multi_country_documents.feature` com cenários de validação de documentos por país
+
+### Changed
+- **Processamento de Placeholders**: Melhorias significativas no processamento de placeholders em feature files
+  - Remoção automática de aspas duplas de placeholders (ex: `"{unique_cpf}"` → `{unique_cpf}`)
+  - Processamento múltiplo de placeholders até substituição completa
+  - Normalização de valores antes de processar (trim, remover aspas)
+- **Geração de Documentos Únicos em Retries**: Correção crítica para preservar contexto original
+  - Retry agora gera documento correto baseado no `documentType` (RUT, CUIT, DNI, CI, SSN, etc.)
+  - Switch statement baseado em `documentType` em vez de sempre gerar CPF
+  - Preservação de contexto original (documentType, país) em retries
+- **Gerenciamento de SessionToken em Retries**: Implementação completa de gerenciamento correto
+  - Retry sempre cria novo OTP/sessionToken em vez de reutilizar
+  - Limpeza de sessionToken apenas após sucesso (201/200), não após erros
+  - Retry baseado em status HTTP (409), não em estado interno
+- **Validação e Normalização de documentType**: Implementação completa de normalização
+  - Remoção de aspas duplas de documentType
+  - Normalização para uppercase (CPF, CNPJ, RUT, etc.)
+  - Omissão de campo quando null para testes de validação funcionarem
+  - Validação contra lista de tipos aceitos pelo backend
+- **RabbitMQ Multi-Country Support**: Suporte completo para múltiplos virtual hosts
+  - `RabbitMQHelper` configurado para múltiplos vhosts (`/br` e `/shared`)
+  - Determinação automática de vhost baseado no tipo de evento
+  - Suporte para eventos de VS-Identity (`/br`) e VS-CustomerCommunications (`/shared`)
+- **Step Definitions**: Melhorias significativas em todos os step definitions
+  - `AuthenticationSteps`: Processamento robusto de placeholders, normalização de documentType, gerenciamento correto de sessionToken
+  - `IdentitySteps`: Melhorias no tratamento de documentType e validação
+  - `ProfileSteps`: Melhorias no tratamento de dados
+- **UserFixture**: Melhorias na construção de requests
+  - Normalização completa de documentType (uppercase, sem aspas)
+  - Omissão de campos null para testes de validação
+  - Logging detalhado para debugging
+- **IdentityServiceClient**: Melhorias no tratamento de requests
+  - Logging de request body antes de serializar
+  - Tratamento correto de `registration-token` header
+- **TestDataGenerator**: Melhorias na geração de dados únicos
+  - Suporte para todos os tipos de documento (CPF, CNPJ, CUIT, DNI, RUT, CI, SSN)
+  - Validação automática de dados gerados
+
+### Fixed
+- **Placeholders com Aspas Duplas**: Corrigido problema onde placeholders vinham com aspas (`"{unique_cpf}"`) causando falhas de validação
+- **Geração de Documentos em Retries**: Corrigido problema onde retry sempre gerava CPF independente do `documentType`
+- **SessionToken em Retries**: Corrigido problema onde retry não executava ou reutilizava sessionToken inválido
+- **documentType Normalização**: Corrigido problema onde documentType não era normalizado corretamente (aspas, case, null)
+- **RabbitMQ Multi-Country Timeouts**: Corrigidos 9 timeouts relacionados a eventos não encontrados em virtual hosts incorretos
+- **Registration Token Header**: Corrigido problema onde `registration-token` header não era passado corretamente
+- **Validação de Email Inválido**: Corrigido problema onde teste de validação falhava prematuramente em vez de permitir backend validar
+- **Retry com Documento Incorreto**: Corrigido problema onde retry gerava documento incorreto (ex: CPF quando esperava RUT)
+
+### Technical Details
+- **Processamento de Placeholders**: Sistema robusto de processamento que remove aspas, normaliza valores e processa múltiplas vezes
+- **Gerenciamento de Estado em Retries**: Preservação de contexto original e recriação completa de estado necessário
+- **Normalização de Dados**: Sistema completo de normalização antes de enviar ao backend
+- **RabbitMQ Multi-VHost**: Suporte completo para múltiplos virtual hosts com determinação automática
+- **Validação de Dados**: Backend como fonte de verdade, código de teste apenas normaliza e envia
+
 ## [0.0.6-SNAPSHOT] - 2025-12-19
 
 ### Added

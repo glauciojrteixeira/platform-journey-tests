@@ -25,12 +25,13 @@ Feature: Registro e Validação Completa de Plataforma B2B
       | dominio_tecnico | api.plataforma.com       |
     Then o domínio deve ser validado (DNS, certificado)
     When eu crio usuário técnico com role TECHNICAL:
-      | campo  | valor                    |
-      | nome   | Admin Técnico            |
-      | cpf    | 98765432100              |
-      | email  | admin@plataforma.com     |
-      | phone  | +5511999996666           |
-      | role   | TECHNICAL                |
+      | campo           | valor                    |
+      | nome            | Admin Técnico            |
+      | documentNumber  | {unique_cpf}             |
+      | documentType    | CPF                      |
+      | email           | admin@plataforma.com     |
+      | phone           | +5511999996666           |
+      | role            | TECHNICAL                |
     Then o usuário técnico deve ser criado
     And o MFA deve ser obrigatório e ativado automaticamente
     And o evento "legal-entity.platform.registered" deve ser publicado

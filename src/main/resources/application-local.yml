@@ -20,9 +20,10 @@ e2e:
 
 # Configuração RabbitMQ para testes E2E (local)
 rabbitmq:
-  # Multi-Country: Virtual Host baseado no país
-  # Em desenvolvimento local, tenta usar "/br" se os serviços estão configurados para multi-country
-  # Se os serviços ainda usam "/" (padrão), usar "/"
+  # Multi-Country: Virtual Host para ambiente local/low env
+  # Em ambientes locais e low env, temos apenas um broker RabbitMQ para um único país
+  # Por padrão, usamos "/br" (país padrão configurado em default-country-code: BR)
+  # Em produção, pode usar "/br", "/ar", "/cl", "/bo" conforme país
   # Pode ser sobrescrito via variável de ambiente: RABBITMQ_VIRTUAL_HOST=/br
-  virtual-host: ${RABBITMQ_VIRTUAL_HOST:/br}  # Default: "/br" para multi-country local
+  virtual-host: ${RABBITMQ_VIRTUAL_HOST:/br}  # Default: "/br" para local/low env (país padrão BR)
 

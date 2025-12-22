@@ -14,11 +14,12 @@ Feature: Jornada Completa - Segmento 1 - Compradores Ocasionais
     Given que estou na tela de registro
     When eu escolho registro com credenciais próprias
     And eu informo:
-      | campo      | valor                    |
-      | nome       | João Silva               |
-      | cpf        | 12345678901              |
-      | email      | joao.silva@example.com    |
-      | telefone   | +5511999998888            |
+      | campo           | valor                    |
+      | nome            | João Silva               |
+      | documentNumber  | {unique_cpf}             |
+      | documentType    | CPF                      |
+      | email           | joao.silva@example.com    |
+      | telefone        | +5511999998888            |
     And eu valido o reCAPTCHA
     # OTP não está implementado - pulando steps de OTP
     And eu envio os dados para criar identidade

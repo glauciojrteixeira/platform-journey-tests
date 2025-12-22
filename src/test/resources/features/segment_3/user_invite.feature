@@ -27,10 +27,11 @@ Feature: Processo de Convite para Novo Usuário
     Then o sistema deve validar o token do link
     And deve verificar se email corresponde ao domínio corporativo
     When eu informo meus dados pessoais:
-      | campo  | valor                    |
-      | nome   | Novo Usuário             |
-      | cpf    | 11122233344              |
-      | phone  | +5511999998888           |
+      | campo           | valor                    |
+      | nome            | Novo Usuário             |
+      | documentNumber  | {unique_cpf}             |
+      | documentType    | CPF                      |
+      | phone           | +5511999998888           |
     And eu valido o OTP recebido
     Then o usuário deve ser criado e vinculado à PJ
     And o role deve ser atribuído conforme convite

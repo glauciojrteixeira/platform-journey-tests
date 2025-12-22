@@ -14,11 +14,12 @@ Feature: Registro e Onboarding de Comprador Ocasional
     Given que estou na tela de registro
     When eu escolho registro com credenciais próprias
     And eu informo:
-      | campo      | valor                    |
-      | nome       | João Silva               |
-      | cpf        | 12345678901              |
-      | email      | joao.silva@example.com    |
-      | telefone   | +5511999998888            |
+      | campo           | valor                    |
+      | nome            | João Silva               |
+      | documentNumber  | {unique_cpf}             |
+      | documentType    | CPF                      |
+      | email           | joao.silva@example.com    |
+      | telefone        | +5511999998888            |
     And eu valido o reCAPTCHA
     And eu envio os dados para criar identidade
     Then a identidade deve ser criada com sucesso
@@ -35,11 +36,12 @@ Feature: Registro e Onboarding de Comprador Ocasional
     Given que estou na tela de registro
     When eu escolho registro com credenciais próprias
     And eu informo:
-      | campo      | valor                    |
-      | nome       | João Silva               |
-      | cpf        | 12345678901              |
-      | email      | joao.silva@example.com    |
-      | telefone   | +5511999998888            |
+      | campo           | valor                    |
+      | nome            | João Silva               |
+      | documentNumber  | {unique_cpf}             |
+      | documentType    | CPF                      |
+      | email           | joao.silva@example.com    |
+      | telefone        | +5511999998888            |
     And eu valido o reCAPTCHA
     And eu solicito OTP via WhatsApp
     And eu recebo o código OTP
@@ -52,28 +54,29 @@ Feature: Registro e Onboarding de Comprador Ocasional
     And o evento "user.created.v1" deve ser publicado
     And o evento "credentials.provisioned.v1" deve ser publicado
 
-  Scenario: Registro falha com CPF duplicado
-    Given que já existe um usuário com CPF "12345678901"
-    When eu tento criar um novo usuário com o mesmo CPF:
-      | campo      | valor                    |
-      | nome       | Maria Santos             |
-      | cpf        | 12345678901              |
-      | email      | maria.santos@example.com |
-      | telefone   | +5511999997777           |
+  Scenario: Registro falha com documento duplicado
+    Given que já existe um usuário com documento "{unique_cpf}" do tipo "CPF"
+    When eu tento criar um novo usuário com o mesmo documento:
+      | campo           | valor                    |
+      | nome            | Maria Santos             |
+      | documentNumber  | {same_document}          |
+      | documentType    | CPF                      |
+      | email           | maria.santos@example.com |
+      | telefone        | +5511999997777           |
     And eu envio os dados para criar identidade
     Then o registro deve falhar com status 409
-    And o erro deve ser "CPF_ALREADY_EXISTS"
-    And a mensagem de erro deve conter "CPF já cadastrado"
+    And a mensagem de erro deve conter "Document already exists"
     And nenhuma identidade deve ser criada
 
   Scenario: Registro falha com email inválido
     Given que estou na tela de registro
     When eu informo dados com email inválido:
-      | campo      | valor                    |
-      | nome       | João Silva               |
-      | cpf        | 98765432100              |
-      | email      | email-invalido           |
-      | telefone   | +5511999998888           |
+      | campo           | valor                    |
+      | nome            | João Silva               |
+      | documentNumber  | {unique_cpf}             |
+      | documentType    | CPF                      |
+      | email           | email-invalido           |
+      | telefone        | +5511999998888           |
     And eu envio os dados para criar identidade
     # Nota: Como a API agora exige OTP antes de criar usuário, a falha ocorre na solicitação de OTP
     # quando o email é inválido, não na criação do usuário
@@ -87,11 +90,12 @@ Feature: Registro e Onboarding de Comprador Ocasional
   Scenario: Registro falha com OTP inválido
     Given que estou na tela de registro
     When eu informo dados válidos:
-      | campo      | valor                    |
-      | nome       | João Silva               |
-      | cpf        | 11122233344              |
-      | email      | joao.silva@example.com   |
-      | telefone   | +5511999998888           |
+      | campo           | valor                    |
+      | nome            | João Silva               |
+      | documentNumber  | {unique_cpf}             |
+      | documentType    | CPF                      |
+      | email           | joao.silva@example.com   |
+      | telefone        | +5511999998888           |
     And eu valido o reCAPTCHA
     And eu solicito OTP via WhatsApp
     And eu valido o OTP informando "000000"

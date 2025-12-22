@@ -96,14 +96,82 @@ public class UserFixture {
     }
     
     /**
-     * Constrói um objeto de requisição para criar usuário no Identity Service
+     * Constrói um objeto de requisição para criar usuário no Identity Service.
      * 
      * @return Objeto de requisição (Map para ser usado com RestAssured)
      */
     public Map<String, Object> buildCreateUserRequest() {
         var request = new java.util.HashMap<String, Object>();
         request.put("name", userData.get("nome") != null ? userData.get("nome") : userData.get("name"));
-        request.put("cpf", userData.get("cpf"));
+        
+        // Usar documentNumber e documentType (formato atual)
+        // Para testes de validação, permitir valores null - o backend deve validar
+        Object documentNumberObj = userData.get("documentNumber");
+        Object documentTypeObj = userData.get("documentType");
+        
+        // Normalizar documentType para uppercase (backend espera uppercase: CPF, CNPJ, etc.)
+        // IMPORTANTE: Sempre normalizar, mesmo que já tenha sido normalizado antes
+        // Isso garante que valores do Examples ou qualquer outro lugar sejam sempre uppercase
+        String documentType = null;
+        var logger = org.slf4j.LoggerFactory.getLogger(UserFixture.class);
+        
+        logger.info("🔍 [UserFixture] buildCreateUserRequest - documentTypeObj: '{}' (tipo: {})", 
+            documentTypeObj, documentTypeObj != null ? documentTypeObj.getClass().getSimpleName() : "null");
+        logger.info("🔍 [UserFixture] userData completo: {}", userData);
+        
+        if (documentTypeObj != null) {
+            String docTypeStr = documentTypeObj.toString();
+            logger.info("🔍 [UserFixture] DocumentType original (toString): '{}' (tipo: {})", docTypeStr, documentTypeObj.getClass().getSimpleName());
+            
+            if (docTypeStr != null && !docTypeStr.trim().isEmpty() && !docTypeStr.trim().equals("null")) {
+                documentType = docTypeStr.trim().toUpperCase();
+                logger.info("✅ [UserFixture] DocumentType após trim e uppercase: '{}'", documentType);
+                
+                // Validar que o documentType está na lista aceita pelo backend
+                // Backend aceita: CPF, CNPJ, CUIT, DNI, RUT, CI, SSN
+                String[] validTypes = {"CPF", "CNPJ", "CUIT", "DNI", "RUT", "CI", "SSN"};
+                boolean isValid = false;
+                for (String validType : validTypes) {
+                    if (validType.equals(documentType)) {
+                        isValid = true;
+                        break;
+                    }
+                }
+                
+                if (!isValid) {
+                    logger.warn("⚠️ DocumentType '{}' não está na lista de tipos aceitos pelo backend: CPF, CNPJ, CUIT, DNI, RUT, CI, SSN", documentType);
+                    logger.warn("⚠️ Isso pode causar erro de validação no backend. Verifique o feature file.");
+                }
+                
+                // Se ficou vazio após trim e uppercase, usar null
+                if (documentType.isEmpty()) {
+                    logger.warn("DocumentType ficou vazio após trim e uppercase, usando null");
+                    documentType = null;
+                }
+            } else {
+                logger.debug("DocumentType é null, vazio ou 'null' após toString, usando null");
+                documentType = null;
+            }
+        } else {
+            logger.debug("DocumentTypeObj é null, usando null para documentType");
+            documentType = null;
+        }
+        
+        // Adicionar documentNumber e documentType (podem ser null para testes de validação)
+        request.put("documentNumber", documentNumberObj);
+        // CORREÇÃO CRÍTICA: NÃO adicionar documentType ao request se for null
+        // Se adicionarmos null, o RestAssured pode omitir, mas o backend pode inferir CPF quando o campo não está presente
+        // Para testes de validação que esperam falha quando documentType é null, NÃO incluir o campo no request
+        if (documentType != null && !documentType.trim().isEmpty()) {
+            request.put("documentType", documentType);
+            logger.info("✅ [UserFixture] documentType adicionado ao request: '{}'", documentType);
+        } else {
+            // NÃO adicionar documentType ao request quando for null
+            // Isso permite que o backend valide e retorne erro apropriado
+            logger.info("ℹ️ [UserFixture] documentType é null - NÃO adicionando ao request (teste de validação)");
+        }
+        
+        // Adicionar outros campos
         request.put("email", userData.get("email"));
         request.put("phone", userData.get("telefone") != null ? userData.get("telefone") : userData.get("phone"));
         request.put("role", userData.getOrDefault("role", "INDIVIDUAL"));
@@ -111,6 +179,32 @@ public class UserFixture {
         if (userData.containsKey("position")) {
             request.put("position", userData.get("position"));
         }
+        
+        // Log final para debug - verificar se documentType ainda está presente
+        logger.info("🔍 [UserFixture] Request final - documentType: '{}' (documentTypeObj: '{}')", documentType, documentTypeObj);
+        logger.info("🔍 [UserFixture] Request completo: {}", request);
+        
+        // VERIFICAÇÃO FINAL CRÍTICA: Garantir que documentType está presente no request
+        Object finalDocumentTypeInRequest = request.get("documentType");
+        logger.info("🔍 [UserFixture] documentType no request após adicionar todos os campos: '{}' (tipo: {})", 
+            finalDocumentTypeInRequest, 
+            finalDocumentTypeInRequest != null ? finalDocumentTypeInRequest.getClass().getSimpleName() : "null");
+        
+        // Se documentType não está presente ou é null quando deveria ter valor, adicionar novamente
+        // Isso garante que mesmo se algo sobrescreveu o valor, ele será restaurado
+        if (documentType != null && finalDocumentTypeInRequest == null) {
+            logger.warn("⚠️ [UserFixture] documentType estava null no request mas deveria ser '{}'. Restaurando...", documentType);
+            request.put("documentType", documentType);
+        } else if (documentType != null && !documentType.equals(finalDocumentTypeInRequest)) {
+            logger.warn("⚠️ [UserFixture] documentType no request ('{}') difere do esperado ('{}'). Corrigindo...", 
+                finalDocumentTypeInRequest, documentType);
+            request.put("documentType", documentType);
+        }
+        
+        // Verificação final absoluta
+        Object verifiedDocumentType = request.get("documentType");
+        logger.info("✅ [UserFixture] VERIFICAÇÃO FINAL - documentType no request: '{}'", verifiedDocumentType);
+        
         return request;
     }
     
@@ -311,8 +405,8 @@ public class UserFixture {
      */
     public Map<String, String> buildLoginRequest() {
         var request = new java.util.HashMap<String, String>();
-        // A API usa username (que pode ser email ou CPF)
-        String username = userData.get("email") != null ? userData.get("email") : userData.get("cpf");
+        // A API usa username (que pode ser email ou documentNumber)
+        String username = userData.get("email") != null ? userData.get("email") : userData.get("documentNumber");
         request.put("username", username);
         request.put("password", userData.getOrDefault("password", "TestPassword123!"));
         return request;

@@ -46,22 +46,21 @@ Feature: Suporte Multi-Country
   Scenario: Dados devem ser isolados por país - Idempotência por país
     Given que o país padrão está configurado como "BR"
     And que crio um usuário com esses dados:
-      | campo      | valor                    |
-      | nome       | João Silva BR            |
-      | cpf        | {unique_cpf}             |
-      | email      | {unique_email}           |
-      | telefone   | {unique_phone}           |
+      | campo           | valor                    |
+      | nome            | João Silva BR            |
+      | documentNumber  | {unique_cpf}             |
+      | documentType    | CPF                      |
+      | email           | {unique_email}           |
+      | telefone        | {unique_phone}           |
     Then a identidade deve ser criada com sucesso
     And o evento "user.created.v1" deve ser publicado
     And o evento "user.created.v1" deve conter o header "country-code" com valor "br"
     When eu tento criar um usuário com os mesmos dados no país "BR"
     Then o registro deve falhar com status 409
-    And o erro deve indicar que o CPF já existe no país "BR"
-    # NOTA: CPF é único globalmente (não por país), pois é específico do Brasil.
-    # Outros países usam documentos diferentes (CUIT para AR, RUT para CL, etc.),
-    # mas o backend ainda não suporta esses documentos.
-    # Quando o backend suportar documentos de outros países, este teste deve ser atualizado
-    # para validar isolamento por país usando documentos apropriados para cada país.
+    And a mensagem de erro deve conter "Document already exists"
+    # NOTA: Documentos são únicos globalmente. Cada país usa seu próprio tipo de documento:
+    # BR usa CPF/CNPJ, AR usa CUIT/DNI, CL usa RUT, BO usa CI, US usa SSN.
+    # O isolamento por país é garantido pelo country-code no header e virtual host do RabbitMQ.
 
   @multi-country-propagation @vs-customer-communications
   Scenario: countryCode deve ser propagado entre microserviços (transactional-messaging → delivery-tracker → audit-compliance)
@@ -84,32 +83,35 @@ Feature: Suporte Multi-Country
   Scenario: Sistema deve suportar múltiplos países simultaneamente
     Given que o país padrão está configurado como "BR"
     And que crio um usuário com esses dados:
-      | campo      | valor                    |
-      | nome       | João Silva BR            |
-      | cpf        | {unique_cpf_br}          |
-      | email      | {unique_email_br}        |
-      | telefone   | {unique_phone_br}        |
+      | campo           | valor                    |
+      | nome            | João Silva BR            |
+      | documentNumber  | {unique_cpf_br}          |
+      | documentType    | CPF                      |
+      | email           | {unique_email_br}        |
+      | telefone        | {unique_phone_br}        |
     Then a identidade deve ser criada com sucesso
     And o evento "user.created.v1" deve conter o header "country-code" com valor "br"
     When eu configuro o país padrão como "AR"
     And que crio um usuário com esses dados:
-      | campo      | valor                    |
-      | nome       | Juan Pérez AR            |
-      | cpf        | {unique_cpf_ar}          |
-      | email      | {unique_email_ar}        |
-      | telefone   | {unique_phone_ar}        |
+      | campo           | valor                    |
+      | nome            | Juan Pérez AR            |
+      | documentNumber  | {unique_cuit_ar}         |
+      | documentType    | CUIT                     |
+      | email           | {unique_email_ar}        |
+      | telefone        | {unique_phone_ar}        |
     Then a identidade deve ser criada com sucesso
     And o evento "user.created.v1" deve conter o header "country-code" com valor "ar"
     When eu configuro o país padrão como "CL"
     And que crio um usuário com esses dados:
-      | campo      | valor                    |
-      | nome       | Carlos González CL        |
-      | cpf        | {unique_cpf_cl}          |
-      | email      | {unique_email_cl}        |
-      | telefone   | {unique_phone_cl}        |
+      | campo           | valor                    |
+      | nome            | Carlos González CL       |
+      | documentNumber  | {unique_rut_cl}          |
+      | documentType    | RUT                      |
+      | email           | {unique_email_cl}         |
+      | telefone        | {unique_phone_cl}         |
     Then a identidade deve ser criada com sucesso
     And o evento "user.created.v1" deve conter o header "country-code" com valor "cl"
-    # Validação: Cada país processa independentemente
+    # Validação: Cada país processa independentemente com seu tipo de documento apropriado
 
   @multi-country-all-supported-countries
   Scenario Outline: Sistema deve funcionar corretamente para todos os países suportados
@@ -160,20 +162,22 @@ Feature: Suporte Multi-Country
   Scenario: Consultas devem retornar apenas dados do país configurado
     Given que o país padrão está configurado como "BR"
     And que crio um usuário com esses dados:
-      | campo      | valor                    |
-      | nome       | João Silva BR            |
-      | cpf        | {unique_cpf_br}          |
-      | email      | {unique_email_br}        |
-      | telefone   | {unique_phone_br}        |
+      | campo           | valor                    |
+      | nome            | João Silva BR            |
+      | documentNumber  | {unique_cpf_br}          |
+      | documentType    | CPF                      |
+      | email           | {unique_email_br}        |
+      | telefone        | {unique_phone_br}         |
     Then a identidade deve ser criada com sucesso
     And o usuário deve ser consultável no país "BR"
     When eu configuro o país padrão como "AR"
     And que crio um usuário com esses dados:
-      | campo      | valor                    |
-      | nome       | Juan Pérez AR            |
-      | cpf        | {unique_cpf_ar}          |
-      | email      | {unique_email_ar}        |
-      | telefone   | {unique_phone_ar}        |
+      | campo           | valor                    |
+      | nome            | Juan Pérez AR            |
+      | documentNumber  | {unique_cuit_ar}         |
+      | documentType    | CUIT                     |
+      | email           | {unique_email_ar}        |
+      | telefone        | {unique_phone_ar}         |
     Then a identidade deve ser criada com sucesso
     And o usuário deve ser consultável no país "AR"
     When eu consulto usuários no país "BR"

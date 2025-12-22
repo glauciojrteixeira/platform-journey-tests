@@ -34,12 +34,12 @@ Feature: Alteração de Dados Pessoais
     Then a alteração de identidade deve falhar com status 409
     And o erro de identidade deve ser "EMAIL_ALREADY_EXISTS"
 
-  Scenario: Tentativa de alterar CPF
+  Scenario: Tentativa de alterar documento
     Given que consulto meus dados atuais
-    When eu tento alterar meu CPF para "98765432100"
+    When eu tento alterar meu documentNumber para "{unique_cpf_2}"
     Then a alteração de identidade deve falhar com status 400
-    And o erro deve indicar que CPF não pode ser alterado
-    And a mensagem de erro de identidade deve conter "CPF is immutable"
+    And o erro deve indicar que documento não pode ser alterado
+    And a mensagem de erro de identidade deve conter "Document is immutable"
 
   @not_implemented @otp_required
   Scenario: Alteração de email falha com OTP inválido

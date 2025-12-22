@@ -22,11 +22,12 @@ Feature: Registro de Entidade Jurídica para Revendedores
       | telefone         | +5511888887777           |
     And eu valido o CNPJ via serviço externo
     And eu informo meus dados pessoais:
-      | campo  | valor                    |
-      | nome   | Maria Santos            |
-      | cpf    | 98765432100             |
-      | email  | maria@empresa.com       |
-      | phone  | +5511999996666          |
+      | campo           | valor                    |
+      | nome            | Maria Santos            |
+      | documentNumber  | {unique_cpf}             |
+      | documentType    | CPF                      |
+      | email           | maria@empresa.com       |
+      | phone           | +5511999996666          |
     And eu envio a requisição de registro
     Then a entidade jurídica deve ser criada
     And o representante legal deve ser vinculado como ADMIN

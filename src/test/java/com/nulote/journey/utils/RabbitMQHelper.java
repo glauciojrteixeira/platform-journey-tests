@@ -43,8 +43,9 @@ public class RabbitMQHelper {
     @Autowired
     private E2EConfiguration config;
     
-    private Connection connection;
-    private Channel channel;
+    // Multi-Country: Múltiplas conexões por virtual host
+    private Map<String, Connection> connections = new HashMap<>();
+    private Map<String, Channel> channels = new HashMap<>();
     private ObjectMapper objectMapper;
     private Map<String, Event> lastConsumedMessages = new HashMap<>();
     
@@ -54,59 +55,65 @@ public class RabbitMQHelper {
         // Inicializar ObjectMapper imediatamente (não depende de RabbitMQ)
         objectMapper = new ObjectMapper();
         
-        // Tentar conectar ao RabbitMQ, mas não falhar o ApplicationContext se não conseguir
-        // A conexão será estabelecida de forma lazy quando necessário
-        try {
-            connect();
-        } catch (Exception e) {
-            logger.warn("⚠️ [TROUBLESHOOTING] Não foi possível conectar ao RabbitMQ durante inicialização: {}", e.getMessage());
-            logger.warn("⚠️ [TROUBLESHOOTING] A conexão será estabelecida de forma lazy quando necessário.");
-            logger.warn("⚠️ [TROUBLESHOOTING] Verifique se:");
-            logger.warn("   1. RabbitMQ está rodando (docker ps | grep rabbitmq)");
-            logger.warn("   2. Host e porta estão corretos ({}:{})", host, port);
-            logger.warn("   3. Credenciais estão corretas (usuário: {})", username);
-            logger.warn("   4. Virtual host existe e tem permissões configuradas");
-            // NÃO lançar exceção - permitir que o ApplicationContext carregue
-            // A conexão será tentada novamente quando necessário (lazy connection)
-        }
+        // Multi-Country: Não conectar durante init() - conexões serão estabelecidas de forma lazy
+        // quando necessário, usando o virtual host correto para cada tipo de evento
+        logger.info("🌍 [MULTI-COUNTRY] RabbitMQHelper inicializado. Conexões serão estabelecidas de forma lazy por virtual host.");
     }
     
     /**
-     * Estabelece conexão com RabbitMQ.
-     * Pode ser chamado durante init() ou de forma lazy quando necessário.
+     * Estabelece conexão com RabbitMQ para um virtual host específico.
+     * Multi-Country: Mantém conexões separadas para cada virtual host.
      * 
+     * @param vhost Virtual host a ser usado (ex: "/br", "/shared")
      * @throws IOException Se houver erro de I/O
      * @throws TimeoutException Se houver timeout
      */
-    private void connect() throws IOException, TimeoutException {
+    private void connect(String vhost) throws IOException, TimeoutException {
         var logger = org.slf4j.LoggerFactory.getLogger(RabbitMQHelper.class);
         
-        // Se já está conectado, não reconectar
-        if (connection != null && connection.isOpen() && channel != null && channel.isOpen()) {
-            logger.debug("Conexão RabbitMQ já está estabelecida");
+        // Se já está conectado para este virtual host, não reconectar
+        Connection existingConnection = connections.get(vhost);
+        Channel existingChannel = channels.get(vhost);
+        if (existingConnection != null && existingConnection.isOpen() && 
+            existingChannel != null && existingChannel.isOpen()) {
+            logger.debug("🌍 [MULTI-COUNTRY] Conexão RabbitMQ já está estabelecida para vhost: {}", vhost);
             return;
         }
         
-        // Determinar virtual host: prioridade para configuração explícita, depois baseado no país
-        String finalVirtualHost = determineVirtualHost();
-        
-        logger.info("🔧 [TROUBLESHOOTING] Iniciando conexão com RabbitMQ em {}:{} (virtual host: {})", 
-            host, port, finalVirtualHost);
+        logger.info("🌍 [MULTI-COUNTRY] Iniciando conexão com RabbitMQ em {}:{} (virtual host: {})", 
+            host, port, vhost);
         ConnectionFactory factory = new ConnectionFactory();
         factory.setHost(host);
         factory.setPort(port);
         factory.setUsername(username);
         factory.setPassword(password);
-        factory.setVirtualHost(finalVirtualHost); // Multi-country: configurar virtual host
+        factory.setVirtualHost(vhost);
         
         // Configurar timeout de conexão para evitar travamentos
         factory.setConnectionTimeout(5000); // 5 segundos
         factory.setNetworkRecoveryInterval(5000); // 5 segundos
         
-        connection = factory.newConnection();
-        channel = connection.createChannel();
-        logger.info("✅ [TROUBLESHOOTING] Conexão RabbitMQ estabelecida com sucesso em {}:{} (virtual host: {})", 
-            host, port, finalVirtualHost);
+        Connection newConnection = factory.newConnection();
+        Channel newChannel = newConnection.createChannel();
+        
+        // Armazenar conexão e canal para este virtual host
+        connections.put(vhost, newConnection);
+        channels.put(vhost, newChannel);
+        
+        logger.info("✅ [MULTI-COUNTRY] Conexão RabbitMQ estabelecida com sucesso em {}:{} (virtual host: {})", 
+            host, port, vhost);
+    }
+    
+    /**
+     * Estabelece conexão com RabbitMQ usando o virtual host padrão.
+     * Mantido para compatibilidade com código existente.
+     * 
+     * @throws IOException Se houver erro de I/O
+     * @throws TimeoutException Se houver timeout
+     */
+    private void connect() throws IOException, TimeoutException {
+        String defaultVhost = determineVirtualHost();
+        connect(defaultVhost);
     }
     
     /**
@@ -136,14 +143,88 @@ public class RabbitMQHelper {
         return "/";
     }
     
+    /**
+     * Determina o virtual host correto baseado no tipo de evento.
+     * Multi-Country: Eventos VS-Identity usam /br, eventos VS-CustomerCommunications usam /shared.
+     * 
+     * @param eventType Tipo de evento (ex: "otp.sent", "user.created.v1")
+     * @return Virtual host correto para o tipo de evento
+     */
+    private String determineVirtualHostForEvent(String eventType) {
+        var logger = org.slf4j.LoggerFactory.getLogger(RabbitMQHelper.class);
+        
+        // Eventos VS-Identity -> /br
+        if (isVSIdentityEvent(eventType)) {
+            String vhost = "/br";
+            logger.debug("🌍 [MULTI-COUNTRY] Evento {} identificado como VS-Identity -> vhost: {}", eventType, vhost);
+            return vhost;
+        }
+        
+        // Eventos VS-CustomerCommunications -> /shared
+        if (isVSCustomerCommunicationsEvent(eventType)) {
+            String vhost = "/shared";
+            logger.debug("🌍 [MULTI-COUNTRY] Evento {} identificado como VS-CustomerCommunications -> vhost: {}", eventType, vhost);
+            return vhost;
+        }
+        
+        // Fallback: usar virtual host padrão da configuração
+        String defaultVhost = determineVirtualHost();
+        logger.debug("🌍 [MULTI-COUNTRY] Evento {} não mapeado, usando vhost padrão: {}", eventType, defaultVhost);
+        return defaultVhost;
+    }
+    
+    /**
+     * Verifica se um evento pertence à VS-Identity (virtual host /br).
+     */
+    private boolean isVSIdentityEvent(String eventType) {
+        return eventType.equals("user.created.v1") ||
+               eventType.equals("credentials.provisioned.v1") ||
+               eventType.equals("otp.validated") ||
+               eventType.equals("auth.logout");
+    }
+    
+    /**
+     * Verifica se um evento pertence à VS-CustomerCommunications (virtual host /shared).
+     */
+    private boolean isVSCustomerCommunicationsEvent(String eventType) {
+        return eventType.equals("otp.sent") ||
+               eventType.equals("welcome.message.sent") ||
+               eventType.equals("delivery.tracking.created.v1") ||
+               eventType.equals("callback.received");
+    }
+    
     @PreDestroy
     public void close() throws IOException, TimeoutException {
-        if (channel != null && channel.isOpen()) {
-            channel.close();
+        var logger = org.slf4j.LoggerFactory.getLogger(RabbitMQHelper.class);
+        
+        // Multi-Country: Fechar todas as conexões e canais
+        for (Map.Entry<String, Channel> entry : channels.entrySet()) {
+            String vhost = entry.getKey();
+            Channel ch = entry.getValue();
+            if (ch != null && ch.isOpen()) {
+                try {
+                    ch.close();
+                    logger.debug("🌍 [MULTI-COUNTRY] Canal fechado para vhost: {}", vhost);
+                } catch (Exception e) {
+                    logger.warn("Erro ao fechar canal para vhost {}: {}", vhost, e.getMessage());
+                }
+            }
         }
-        if (connection != null && connection.isOpen()) {
-            connection.close();
+        channels.clear();
+        
+        for (Map.Entry<String, Connection> entry : connections.entrySet()) {
+            String vhost = entry.getKey();
+            Connection conn = entry.getValue();
+            if (conn != null && conn.isOpen()) {
+                try {
+                    conn.close();
+                    logger.debug("🌍 [MULTI-COUNTRY] Conexão fechada para vhost: {}", vhost);
+                } catch (Exception e) {
+                    logger.warn("Erro ao fechar conexão para vhost {}: {}", vhost, e.getMessage());
+                }
+            }
         }
+        connections.clear();
     }
     
     /**
@@ -204,50 +285,54 @@ public class RabbitMQHelper {
     public Event consumeMessage(String eventType, String queueName) {
         var logger = org.slf4j.LoggerFactory.getLogger(RabbitMQHelper.class);
         try {
-            // Verificar se canal está aberto
+            // Multi-Country: Determinar virtual host correto para este evento
+            String vhost = determineVirtualHostForEvent(eventType);
+            logger.debug("🌍 [MULTI-COUNTRY] Consumindo evento {} do vhost: {}", eventType, vhost);
+            
+            // Obter conexão e canal para este virtual host
+            Channel channel = channels.get(vhost);
             if (channel == null || !channel.isOpen()) {
-                logger.debug("Canal RabbitMQ não está aberto. Tentando reconectar...");
+                logger.debug("🌍 [MULTI-COUNTRY] Canal não está aberto para vhost {}. Tentando conectar...", vhost);
                 try {
-                    connect();
+                    connect(vhost);
+                    channel = channels.get(vhost);
                 } catch (Exception e) {
-                    logger.warn("Erro ao reconectar ao RabbitMQ: {}", e.getMessage());
+                    logger.warn("Erro ao conectar ao RabbitMQ no vhost {}: {}", vhost, e.getMessage());
                     return null;
                 }
             }
             
             // Determinar nome da fila seguindo padrão do projeto
             String finalQueueName = queueName != null ? queueName : determineQueueName(eventType);
-            logger.debug("Consumindo evento {} da fila {}", eventType, finalQueueName);
+            logger.debug("🌍 [MULTI-COUNTRY] Consumindo evento {} da fila {} no vhost {}", eventType, finalQueueName, vhost);
             
-            // Para otp.sent, tentar ambas as filas possíveis
+            // Para otp.sent, tentar ambas as filas possíveis (pode estar em /br ou /shared)
             // IMPORTANTE: Como há consumidores ativos nas filas principais, as mensagens são consumidas rapidamente
-            // Vamos tentar consumir de ambas as filas, mas pode ser que a mensagem já tenha sido consumida
             if ("otp.sent".equals(eventType) && queueName == null) {
-                logger.debug("🔧 [TROUBLESHOOTING] Tentando consumir evento otp.sent. Verificando múltiplas filas...");
+                logger.debug("🔧 [TROUBLESHOOTING] Tentando consumir evento otp.sent. Verificando múltiplas filas e vhosts...");
                 
-                // Tentar primeiro auth.otp-sent.queue
-                Event event = tryConsumeFromQueue(eventType, "auth.otp-sent.queue", logger);
+                // Primeiro tentar no vhost /shared (onde está a fila transactional.auth-otp-sent.queue)
+                Event event = tryConsumeFromQueue(eventType, "transactional.auth-otp-sent.queue", "/shared", logger);
                 if (event != null) {
-                    logger.info("✅ [TROUBLESHOOTING] Evento otp.sent encontrado em auth.otp-sent.queue");
+                    logger.info("✅ [TROUBLESHOOTING] Evento otp.sent encontrado em transactional.auth-otp-sent.queue (vhost /shared)");
                     return event;
                 }
                 
-                // Se não encontrou, tentar transactional.auth-otp-sent.queue
-                logger.debug("🔧 [TROUBLESHOOTING] Nenhuma mensagem encontrada em auth.otp-sent.queue, tentando transactional.auth-otp-sent.queue");
-                event = tryConsumeFromQueue(eventType, "transactional.auth-otp-sent.queue", logger);
+                // Se não encontrou, tentar no vhost /br (onde pode estar auth.otp-sent.queue)
+                logger.debug("🔧 [TROUBLESHOOTING] Nenhuma mensagem encontrada em /shared, tentando /br");
+                event = tryConsumeFromQueue(eventType, "auth.otp-sent.queue", "/br", logger);
                 if (event != null) {
-                    logger.info("✅ [TROUBLESHOOTING] Evento otp.sent encontrado em transactional.auth-otp-sent.queue");
+                    logger.info("✅ [TROUBLESHOOTING] Evento otp.sent encontrado em auth.otp-sent.queue (vhost /br)");
                     return event;
                 }
                 
                 // Se ainda não encontrou, pode ser que a mensagem já foi consumida pelos consumidores ativos
-                // Nesse caso, vamos verificar se podemos obter do banco de dados ou logs
                 logger.debug("🔧 [TROUBLESHOOTING] Nenhuma mensagem encontrada nas filas. A mensagem pode ter sido consumida pelos consumidores ativos.");
                 logger.debug("🔧 [TROUBLESHOOTING] Isso é ESPERADO quando há consumidores ativos (ex: Transactional Messaging Service)");
                 return null;
             }
             
-            return tryConsumeFromQueue(eventType, finalQueueName, logger);
+            return tryConsumeFromQueue(eventType, finalQueueName, vhost, logger);
         } catch (Exception e) {
             logger.error("Erro ao consumir mensagem do RabbitMQ: {}", e.getMessage(), e);
             // Em ambiente de teste, não falhar o teste se RabbitMQ não estiver disponível
@@ -257,16 +342,27 @@ public class RabbitMQHelper {
     }
     
     /**
-     * Tenta consumir uma mensagem de uma fila específica
+     * Tenta consumir uma mensagem de uma fila específica no virtual host especificado.
+     * 
+     * @param eventType Tipo de evento
+     * @param queueName Nome da fila
+     * @param vhost Virtual host a ser usado
+     * @param logger Logger
+     * @return Evento consumido ou null
      */
-    private Event tryConsumeFromQueue(String eventType, String queueName, org.slf4j.Logger logger) throws IOException {
-        // Verificar conexão
-        if (connection == null || !connection.isOpen()) {
-            logger.warn("⚠️ [TROUBLESHOOTING] Conexão RabbitMQ não está aberta. Tentando reconectar...");
+    private Event tryConsumeFromQueue(String eventType, String queueName, String vhost, org.slf4j.Logger logger) throws IOException {
+        // Multi-Country: Verificar conexão para este virtual host específico
+        Connection connection = connections.get(vhost);
+        Channel channel = channels.get(vhost);
+        
+        if (connection == null || !connection.isOpen() || channel == null || !channel.isOpen()) {
+            logger.warn("⚠️ [MULTI-COUNTRY] Conexão RabbitMQ não está aberta para vhost {}. Tentando reconectar...", vhost);
             try {
-                connect();
+                connect(vhost);
+                connection = connections.get(vhost);
+                channel = channels.get(vhost);
             } catch (Exception e) {
-                logger.error("❌ [TROUBLESHOOTING] Falha ao reconectar ao RabbitMQ: {}", e.getMessage());
+                logger.error("❌ [MULTI-COUNTRY] Falha ao reconectar ao RabbitMQ no vhost {}: {}", vhost, e.getMessage());
                 return null;
             }
         }
@@ -392,16 +488,58 @@ public class RabbitMQHelper {
      * @param queueName Nome da fila
      * @return Informações da fila ou null se a fila não existir ou houver erro
      */
+    /**
+     * Obtém informações sobre uma fila, tentando em ambos os virtual hosts se necessário.
+     * 
+     * @param queueName Nome da fila
+     * @return Informações da fila ou null se a fila não existir ou houver erro
+     */
     public QueueInfo getQueueInfo(String queueName) {
         var logger = org.slf4j.LoggerFactory.getLogger(RabbitMQHelper.class);
+        
+        // Tentar primeiro no vhost /shared (VS-CustomerCommunications)
+        QueueInfo info = getQueueInfo(queueName, "/shared", logger);
+        if (info != null) {
+            return info;
+        }
+        
+        // Se não encontrou, tentar no vhost /br (VS-Identity)
+        info = getQueueInfo(queueName, "/br", logger);
+        if (info != null) {
+            return info;
+        }
+        
+        // Se ainda não encontrou, tentar no vhost padrão
+        String defaultVhost = determineVirtualHost();
+        if (!defaultVhost.equals("/shared") && !defaultVhost.equals("/br")) {
+            return getQueueInfo(queueName, defaultVhost, logger);
+        }
+        
+        return null;
+    }
+    
+    /**
+     * Obtém informações sobre uma fila em um virtual host específico.
+     * 
+     * @param queueName Nome da fila
+     * @param vhost Virtual host a ser usado
+     * @param logger Logger
+     * @return Informações da fila ou null se a fila não existir ou houver erro
+     */
+    private QueueInfo getQueueInfo(String queueName, String vhost, org.slf4j.Logger logger) {
         try {
-            // Verificar conexão
+            // Multi-Country: Verificar conexão para este virtual host específico
+            Connection connection = connections.get(vhost);
+            Channel channel = channels.get(vhost);
+            
             if (connection == null || !connection.isOpen() || channel == null || !channel.isOpen()) {
-                logger.debug("Conexão RabbitMQ não está aberta. Tentando reconectar...");
+                logger.debug("🌍 [MULTI-COUNTRY] Conexão RabbitMQ não está aberta para vhost {}. Tentando conectar...", vhost);
                 try {
-                    connect();
+                    connect(vhost);
+                    connection = connections.get(vhost);
+                    channel = channels.get(vhost);
                 } catch (Exception e) {
-                    logger.warn("Erro ao reconectar ao RabbitMQ: {}", e.getMessage());
+                    logger.debug("Erro ao conectar ao RabbitMQ no vhost {}: {}", vhost, e.getMessage());
                     return null;
                 }
             }
@@ -414,10 +552,10 @@ public class RabbitMQHelper {
                 queueInfo.getConsumerCount()
             );
         } catch (IOException e) {
-            logger.debug("Fila {} não existe ou não está acessível: {}", queueName, e.getMessage());
+            logger.debug("🌍 [MULTI-COUNTRY] Fila {} não existe ou não está acessível no vhost {}: {}", queueName, vhost, e.getMessage());
             return null;
         } catch (Exception e) {
-            logger.debug("Erro ao obter informações da fila {}: {}", queueName, e.getMessage());
+            logger.debug("🌍 [MULTI-COUNTRY] Erro ao obter informações da fila {} no vhost {}: {}", queueName, vhost, e.getMessage());
             return null;
         }
     }

@@ -68,9 +68,11 @@ public class ProfileSteps {
         // Se usuário não existe, criar um novo usuário de teste (com OTP)
         logger.debug("Criando novo usuário para autenticação...");
         // Criar usuário primeiro
+        // Usar CPF como padrão (BR) - se precisar de outro país, deve ser configurado antes
         var userData = new java.util.HashMap<String, String>();
         userData.put("nome", com.nulote.journey.fixtures.TestDataGenerator.generateUniqueName());
-        userData.put("cpf", com.nulote.journey.fixtures.TestDataGenerator.generateUniqueCpf());
+        userData.put("documentNumber", com.nulote.journey.fixtures.TestDataGenerator.generateUniqueCpf());
+        userData.put("documentType", "CPF");
         userData.put("email", com.nulote.journey.fixtures.TestDataGenerator.generateUniqueEmail());
         userData.put("telefone", com.nulote.journey.fixtures.TestDataGenerator.generateUniquePhone());
         userData.put("password", "TestPassword123!");
