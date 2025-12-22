@@ -8,51 +8,19 @@ Feature: Registro e Onboarding de Comprador Ocasional
     Given a infraestrutura de testes está configurada
     And os microserviços estão rodando
 
-  # Cenário simplificado sem OTP - NÃO MAIS SUPORTADO: API agora exige OTP obrigatório
-  @not_implemented @otp_required
-  Scenario: Registro bem-sucedido sem OTP
+  # Cenário básico de criação de identidade (consolidado de create_identity.feature)
+  Scenario: Criação de identidade bem-sucedida
     Given que estou na tela de registro
-    When eu escolho registro com credenciais próprias
-    And eu informo:
+    When eu informo:
       | campo           | valor                    |
       | nome            | João Silva               |
       | documentNumber  | {unique_cpf}             |
       | documentType    | CPF                      |
       | email           | joao.silva@example.com    |
       | telefone        | +5511999998888            |
-    And eu valido o reCAPTCHA
     And eu envio os dados para criar identidade
     Then a identidade deve ser criada com sucesso
-    # Nota: Credenciais e perfil podem ser criados assincronamente via eventos
-    # And as credenciais devem ser provisionadas
-    # And o perfil deve ser criado automaticamente
-    # And eu devo receber um JWT válido
-    # And o evento "user.created.v1" deve ser publicado
-    # And o evento "credentials.provisioned.v1" deve ser publicado
-
-  # Cenário completo com OTP - marcado como não implementado
-  @not_implemented @otp_required
-  Scenario: Registro bem-sucedido via credenciais próprias com OTP
-    Given que estou na tela de registro
-    When eu escolho registro com credenciais próprias
-    And eu informo:
-      | campo           | valor                    |
-      | nome            | João Silva               |
-      | documentNumber  | {unique_cpf}             |
-      | documentType    | CPF                      |
-      | email           | joao.silva@example.com    |
-      | telefone        | +5511999998888            |
-    And eu valido o reCAPTCHA
-    And eu solicito OTP via WhatsApp
-    And eu recebo o código OTP
-    And eu valido o OTP informando "123456"
-    And eu envio os dados para criar identidade
-    Then a identidade deve ser criada com sucesso
-    And as credenciais devem ser provisionadas
-    And o perfil deve ser criado automaticamente
-    And eu devo receber um JWT válido
-    And o evento "user.created.v1" deve ser publicado
-    And o evento "credentials.provisioned.v1" deve ser publicado
+    And a identidade deve ser criada no Identity Service
 
   Scenario: Registro falha com documento duplicado
     Given que já existe um usuário com documento "{unique_cpf}" do tipo "CPF"

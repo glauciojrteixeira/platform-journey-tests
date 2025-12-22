@@ -6,7 +6,8 @@ import io.cucumber.java.pt.Dado;
 
 /**
  * Hooks do Cucumber para setup e teardown de cenários.
- * Não há necessidade de cleanup - idempotência + dados únicos garantem isolamento.
+ * Não há necessidade de cleanup de dados - idempotência + dados únicos garantem isolamento.
+ * Mas fazemos cleanup de recursos de hardware (conexões HTTP) para liberar memória.
  */
 public class Hooks {
     
@@ -18,7 +19,23 @@ public class Hooks {
     
     @After("@e2e")
     public void afterScenario() {
-        // Não há necessidade de cleanup - idempotência + dados únicos garantem isolamento
+        // Cleanup de recursos de hardware para liberar memória
+        // RestAssured: Forçar eviction de conexões idle do pool HTTP
+        // Isso ajuda a liberar memória mais rapidamente, especialmente com paralelização
+        try {
+            // RestAssured gerencia connection pooling automaticamente
+            // Não há API pública para forçar eviction, mas o GC vai limpar conexões idle
+            // Apenas sugerir GC (não força, mas ajuda se memória estiver baixa)
+            if (Runtime.getRuntime().freeMemory() < Runtime.getRuntime().totalMemory() * 0.1) {
+                // Se menos de 10% de memória livre, sugerir GC
+                System.gc();
+            }
+        } catch (Exception e) {
+            // Ignorar erros de cleanup - não deve falhar o teste
+            var logger = org.slf4j.LoggerFactory.getLogger(Hooks.class);
+            logger.debug("Erro durante cleanup de recursos: {}", e.getMessage());
+        }
+        
         System.out.println("✅ Cenário concluído - dados mantidos para rastreabilidade");
     }
     

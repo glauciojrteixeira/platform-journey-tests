@@ -27,11 +27,14 @@ public class ProfileSteps {
     @Autowired
     private UserFixture userFixture;
     
+    @Autowired(required = false)
+    private com.nulote.journey.fixtures.TestDataCache testDataCache;
+    
     // Configurações de timeout para eventos assíncronos
     @Value("${e2e.event-timeout-seconds:3}")
     private long eventTimeoutSeconds;
     
-    @Value("${e2e.event-poll-interval-ms:200}")
+    @Value("${e2e.event-poll-interval-ms:300}")
     private long eventPollIntervalMs;
     
     private Response lastResponse;
@@ -57,6 +60,22 @@ public class ProfileSteps {
     public void que_estou_autenticado_na_plataforma() {
         var logger = org.slf4j.LoggerFactory.getLogger(ProfileSteps.class);
         
+        // Cache: Verificar se há usuário no cache antes de criar novo
+        if (testDataCache != null) {
+            var userData = userFixture.getUserData();
+            if (userData != null) {
+                String email = userData.get("email");
+                if (email != null) {
+                    String cachedUuid = testDataCache.getCachedUserUuid(email);
+                    if (cachedUuid != null) {
+                        logger.info("✅ [CACHE] Reutilizando usuário do cache: email={}, uuid={}", email, cachedUuid);
+                        userFixture.setCreatedUserUuid(cachedUuid);
+                        return;
+                    }
+                }
+            }
+        }
+        
         // Se o usuário já foi criado em um step anterior, apenas verificar se está autenticado
         // Não precisamos criar um novo usuário se já existe um
         if (userFixture.getCreatedUserUuid() != null) {
@@ -71,7 +90,23 @@ public class ProfileSteps {
         // Usar CPF como padrão (BR) - se precisar de outro país, deve ser configurado antes
         var userData = new java.util.HashMap<String, String>();
         userData.put("nome", com.nulote.journey.fixtures.TestDataGenerator.generateUniqueName());
-        userData.put("documentNumber", com.nulote.journey.fixtures.TestDataGenerator.generateUniqueCpf());
+        
+        // Cache: Verificar se há CPF no cache antes de gerar novo
+        String documentNumber = null;
+        if (testDataCache != null) {
+            documentNumber = testDataCache.getCachedDocument("CPF");
+            if (documentNumber != null) {
+                logger.debug("✅ [CACHE] Reutilizando CPF do cache: {}", documentNumber);
+            }
+        }
+        if (documentNumber == null) {
+            documentNumber = com.nulote.journey.fixtures.TestDataGenerator.generateUniqueCpf();
+            // Adicionar ao cache para reutilização futura
+            if (testDataCache != null) {
+                testDataCache.cacheDocument("CPF", documentNumber);
+            }
+        }
+        userData.put("documentNumber", documentNumber);
         userData.put("documentType", "CPF");
         userData.put("email", com.nulote.journey.fixtures.TestDataGenerator.generateUniqueEmail());
         userData.put("telefone", com.nulote.journey.fixtures.TestDataGenerator.generateUniquePhone());
@@ -145,7 +180,7 @@ public class ProfileSteps {
                         profileLogger.info("Aguardando criação automática de perfil para usuário {} (timeout: {}s)", 
                             finalUserUuid, eventTimeoutSeconds);
                         org.awaitility.Awaitility.await()
-                            .atMost(Math.max(eventTimeoutSeconds, 15), java.util.concurrent.TimeUnit.SECONDS) // Mínimo de 15 segundos
+                            .atMost(Math.max(eventTimeoutSeconds, 5), java.util.concurrent.TimeUnit.SECONDS) // Mínimo de 5 segundos (otimizado de 15s)
                             .pollInterval(eventPollIntervalMs, java.util.concurrent.TimeUnit.MILLISECONDS)
                             .until(() -> {
                                 try {
@@ -168,7 +203,7 @@ public class ProfileSteps {
                         profileLogger.warn("Perfil não foi criado automaticamente após {}s para usuário {}. " +
                             "Isso pode indicar que o evento user.created.v1 não foi publicado ou processado corretamente. " +
                             "Continuando...", 
-                            Math.max(eventTimeoutSeconds, 15), finalUserUuid);
+                            Math.max(eventTimeoutSeconds, 5), finalUserUuid);
                         // Não falhar aqui - alguns testes podem criar perfil manualmente
                     }
                 }
@@ -197,12 +232,13 @@ public class ProfileSteps {
             // Aguardar criação automática de perfil
             // IMPORTANTE: O Outbox Pattern pode ter delay de 2-5 segundos para publicar o evento
             // e o consumer pode levar mais alguns segundos para processar e criar o perfil
-            // Aumentar timeout para 20 segundos para dar tempo suficiente
+            // Usar timeout configurado (otimizado)
             try {
-                profileLogger.info("Aguardando criação automática de perfil para usuário {} (timeout: 20s)", userUuid);
+                profileLogger.info("Aguardando criação automática de perfil para usuário {} (timeout: {}s)", 
+                    userUuid, Math.max(eventTimeoutSeconds, 5));
                 org.awaitility.Awaitility.await()
-                    .atMost(20, java.util.concurrent.TimeUnit.SECONDS)
-                    .pollInterval(500, java.util.concurrent.TimeUnit.MILLISECONDS)
+                    .atMost(Math.max(eventTimeoutSeconds, 5), java.util.concurrent.TimeUnit.SECONDS)
+                    .pollInterval(eventPollIntervalMs, java.util.concurrent.TimeUnit.MILLISECONDS)
                     .until(() -> {
                         try {
                             var profileResponse = profileClient.getProfileByUserUuid(userUuid);

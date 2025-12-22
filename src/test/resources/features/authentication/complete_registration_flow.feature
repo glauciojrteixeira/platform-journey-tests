@@ -1,7 +1,7 @@
-@implemented @segment_1 @j1.1 @registration @otp @critical @e2e @vs-identity
-Feature: Fluxo Completo de Registro com OTP
+@implemented @segment_1 @j1.1 @registration @otp @advanced @critical @e2e @vs-identity
+Feature: Fluxos Avançados de Registro e Acesso
   Como um comprador ocasional
-  Eu quero me registrar na plataforma usando OTP
+  Eu quero completar fluxos avançados de registro e acesso
   Para poder fazer arremates com segurança
 
   Background:

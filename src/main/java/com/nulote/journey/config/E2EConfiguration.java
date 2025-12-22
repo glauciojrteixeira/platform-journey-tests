@@ -15,8 +15,11 @@ public class E2EConfiguration {
     private String defaultCountryCode = "BR"; // Default para Brasil (será convertido para lowercase no header)
     private Services services;
     private int timeout;
+    private Integer eventTimeoutSeconds;
+    private Long eventPollIntervalMs;
     private SimulateProvider simulateProvider = new SimulateProvider();
     private RateLimitRetry rateLimitRetry = new RateLimitRetry();
+    private HttpClient httpClient = new HttpClient();
     
     public String getEnvironment() {
         return environment;
@@ -60,6 +63,22 @@ public class E2EConfiguration {
         this.timeout = timeout;
     }
     
+    public Integer getEventTimeoutSeconds() {
+        return eventTimeoutSeconds != null ? eventTimeoutSeconds : 3; // Default: 3 segundos
+    }
+    
+    public void setEventTimeoutSeconds(Integer eventTimeoutSeconds) {
+        this.eventTimeoutSeconds = eventTimeoutSeconds;
+    }
+    
+    public Long getEventPollIntervalMs() {
+        return eventPollIntervalMs != null ? eventPollIntervalMs : 500L; // Default: 500ms
+    }
+    
+    public void setEventPollIntervalMs(Long eventPollIntervalMs) {
+        this.eventPollIntervalMs = eventPollIntervalMs;
+    }
+    
     public SimulateProvider getSimulateProvider() {
         return simulateProvider;
     }
@@ -74,6 +93,14 @@ public class E2EConfiguration {
     
     public void setRateLimitRetry(RateLimitRetry rateLimitRetry) {
         this.rateLimitRetry = rateLimitRetry;
+    }
+    
+    public HttpClient getHttpClient() {
+        return httpClient;
+    }
+    
+    public void setHttpClient(HttpClient httpClient) {
+        this.httpClient = httpClient;
     }
     
     /**
@@ -197,6 +224,54 @@ public class E2EConfiguration {
         
         public void setEnabled(Boolean enabled) {
             this.enabled = enabled;
+        }
+    }
+    
+    public static class HttpClient {
+        private Integer maxConnectionsPerRoute;
+        private Integer maxTotalConnections;
+        private Integer connectionTimeoutMs;
+        private Integer socketTimeoutMs;
+        private Long connectionTtlMs;
+        
+        public Integer getMaxConnectionsPerRoute() {
+            return maxConnectionsPerRoute != null ? maxConnectionsPerRoute : 20; // Default: 20
+        }
+        
+        public void setMaxConnectionsPerRoute(Integer maxConnectionsPerRoute) {
+            this.maxConnectionsPerRoute = maxConnectionsPerRoute;
+        }
+        
+        public Integer getMaxTotalConnections() {
+            return maxTotalConnections != null ? maxTotalConnections : 100; // Default: 100
+        }
+        
+        public void setMaxTotalConnections(Integer maxTotalConnections) {
+            this.maxTotalConnections = maxTotalConnections;
+        }
+        
+        public Integer getConnectionTimeoutMs() {
+            return connectionTimeoutMs != null ? connectionTimeoutMs : 5000; // Default: 5s
+        }
+        
+        public void setConnectionTimeoutMs(Integer connectionTimeoutMs) {
+            this.connectionTimeoutMs = connectionTimeoutMs;
+        }
+        
+        public Integer getSocketTimeoutMs() {
+            return socketTimeoutMs != null ? socketTimeoutMs : 30000; // Default: 30s
+        }
+        
+        public void setSocketTimeoutMs(Integer socketTimeoutMs) {
+            this.socketTimeoutMs = socketTimeoutMs;
+        }
+        
+        public Long getConnectionTtlMs() {
+            return connectionTtlMs != null ? connectionTtlMs : 300000L; // Default: 5min
+        }
+        
+        public void setConnectionTtlMs(Long connectionTtlMs) {
+            this.connectionTtlMs = connectionTtlMs;
         }
     }
 }

@@ -5,6 +5,70 @@ Todas as mudanças notáveis neste projeto serão documentadas neste arquivo.
 O formato é baseado em [Keep a Changelog](https://keepachangelog.com/pt-BR/1.0.0/),
 e este projeto adere ao [Versionamento Semântico](https://semver.org/lang/pt-BR/).
 
+## [0.0.8-SNAPSHOT] - 2025-12-22
+
+### Added
+- **Documentação de Análise e Otimização**: Documentação completa de análises de performance e otimizações
+  - `ANALISE_OTIMIZACAO_CENARIOS.md`: Análise detalhada de otimização de cenários de teste
+  - `OTIMIZACAO_PERFORMANCE.md`: Estratégias e melhorias de performance implementadas
+  - `OTIMIZACOES_CENARIOS_IMPLEMENTADAS.md`: Otimizações de cenários implementadas
+  - `RESULTADOS_FINAIS_OTIMIZACAO.md`: Resultados finais das otimizações realizadas
+  - `OTIMIZACOES_ADICIONAIS.md`: Otimizações adicionais implementadas
+- **Documentação de Análise de Código e Recursos**: Análises detalhadas de implementação e gerenciamento de recursos
+  - `ANALISE_GERENCIAMENTO_RECURSOS.md`: Análise de gerenciamento de recursos do sistema
+  - `ANALISE_IMPLEMENTACAO_CODIGO_FONTE.md`: Análise detalhada da implementação do código fonte
+- **Documentação de Features**: Análise e resumo de features pendentes
+  - `FEATURES_PENDENTES_ANALISE.md`: Análise detalhada de features pendentes
+  - `RESUMO_FEATURES_PENDENTES.md`: Resumo consolidado de features pendentes
+- **Documentação de Cache**: Documentação de integração de cache de dados
+  - `INTEGRACAO_CACHE_DADOS.md`: Documentação completa da integração de cache de dados
+- **TestDataCache**: Nova fixture para cache de dados de teste
+  - `TestDataCache.java`: Implementação de cache para dados de teste, reduzindo geração redundante
+- **Script de Execução Seletiva**: Script para execução seletiva de testes
+  - `scripts/selective-test-execution.sh`: Script para execução seletiva de testes baseado em tags e critérios
+
+### Changed
+- **E2EConfiguration**: Adicionadas configurações de cache e otimizações
+  - Configuração de cache de dados de teste
+  - Configurações de otimização de performance
+- **E2ETestConfiguration**: Melhorias com suporte a cache
+  - Integração com TestDataCache para cache de dados de teste
+  - Otimizações de inicialização e configuração
+- **AuthenticationSteps**: Melhorias de performance e otimizações
+  - Uso de cache para dados de teste quando apropriado
+  - Otimizações no processamento de placeholders
+  - Melhorias no gerenciamento de estado
+- **ProfileSteps**: Otimizações e melhorias
+  - Melhorias no tratamento de dados
+  - Otimizações de performance
+  - Uso de cache quando apropriado
+- **MultiCountrySteps**: Melhorias e otimizações
+  - Otimizações no processamento de dados multi-country
+  - Melhorias no gerenciamento de estado
+- **SimulateProviderSteps**: Melhorias e otimizações
+  - Otimizações no processamento de eventos
+  - Melhorias no consumo de mensagens RabbitMQ
+- **Hooks**: Adicionada inicialização de cache
+  - Inicialização do TestDataCache antes dos testes
+  - Limpeza de cache após execução de testes
+- **application.yml**: Configurações de cache adicionadas
+  - Configurações de cache de dados de teste
+  - Configurações de otimização de performance
+- **Feature Files**: Otimizações e melhorias
+  - `complete_registration_flow.feature`: Otimizações nos cenários
+  - `registration.feature`: Melhorias e simplificações nos cenários
+
+### Removed
+- **create_identity.feature**: Feature removida e consolidada em outras features
+  - Cenários movidos para features mais apropriadas
+  - Consolidação de funcionalidades relacionadas
+
+### Technical Details
+- **Cache de Dados de Teste**: Implementação de cache para reduzir geração redundante de dados de teste
+- **Otimizações de Performance**: Melhorias significativas na performance dos testes E2E
+- **Gerenciamento de Recursos**: Melhorias no gerenciamento de recursos durante execução de testes
+- **Execução Seletiva**: Suporte para execução seletiva de testes baseado em critérios específicos
+
 ## [0.0.7-SNAPSHOT] - 2025-12-22
 
 ### Added

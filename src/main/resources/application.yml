@@ -13,11 +13,18 @@ e2e:
   # Considerando cluster local com latência mínima:
   # - Outbox Pattern: até 2s de delay
   # - Processamento: ~100ms
-  # - Polling overhead: reduzido para 500ms (menos verbosidade)
+  # - Polling overhead: otimizado para 300ms (balance entre responsividade e overhead)
   # - Margem de segurança: 200ms
-  # Total mínimo seguro: ~3 segundos
+  # Total mínimo seguro: ~3 segundos (otimizado de 5s para 3s)
   event-timeout-seconds: 3
-  event-poll-interval-ms: 500  # Aumentado de 200ms para 500ms para reduzir verbosidade dos logs
+  event-poll-interval-ms: 300  # Otimizado de 500ms para 300ms para melhor responsividade
+  # Connection Pooling: configurações para otimizar reutilização de conexões HTTP
+  http-client:
+    max-connections-per-route: 20  # Máximo de conexões por rota (serviço)
+    max-total-connections: 100  # Total máximo de conexões
+    connection-timeout-ms: 5000  # Timeout para estabelecer conexão (5s)
+    socket-timeout-ms: 30000  # Timeout para leitura de dados (30s)
+    connection-ttl-ms: 300000  # TTL de conexões idle (5min)
   # Simulação de providers: permite simular envio de mensagens aos providers
   # em ambientes não-PROD, evitando custos e permitindo testes sem dependências externas
   simulate-provider:

@@ -45,11 +45,14 @@ public class AuthenticationSteps {
     @Autowired
     private com.nulote.journey.config.E2EConfiguration config;
     
+    @Autowired(required = false)
+    private com.nulote.journey.fixtures.TestDataCache testDataCache;
+    
     // Configurações de timeout para eventos assíncronos
     @Value("${e2e.event-timeout-seconds:3}")
     private long eventTimeoutSeconds;
     
-    @Value("${e2e.event-poll-interval-ms:200}")
+    @Value("${e2e.event-poll-interval-ms:300}")
     private long eventPollIntervalMs;
     
     private Response lastResponse;
@@ -247,35 +250,54 @@ public class AuthenticationSteps {
             if (documentType == null) {
                 documentType = "CPF"; // Default para evitar erro no switch
             }
-            switch (documentType) {
-                case "CPF":
-                    documentNumber = com.nulote.journey.fixtures.TestDataGenerator.generateUniqueCpf();
-                    break;
-                case "CNPJ":
-                    documentNumber = com.nulote.journey.fixtures.TestDataGenerator.generateUniqueCnpj();
-                    break;
-                case "CUIT":
-                    documentNumber = com.nulote.journey.fixtures.TestDataGenerator.generateUniqueCuit();
-                    break;
-                case "DNI":
-                    documentNumber = com.nulote.journey.fixtures.TestDataGenerator.generateUniqueDni();
-                    break;
-                case "RUT":
-                    documentNumber = com.nulote.journey.fixtures.TestDataGenerator.generateUniqueRut();
-                    break;
-                case "CI":
-                    documentNumber = com.nulote.journey.fixtures.TestDataGenerator.generateUniqueCi();
-                    break;
-                case "SSN":
-                    documentNumber = com.nulote.journey.fixtures.TestDataGenerator.generateUniqueSsn();
-                    break;
-                default:
-                    // Para tipos não suportados (ex: PASSPORT), não gerar documento
-                    // Deixar que o backend valide e retorne erro apropriado
-                    // Não lançar exceção aqui - permitir que teste de validação funcione
+            // Cache: Verificar se há documento no cache antes de gerar novo
+            // Apenas usar cache se teste não precisa de documento específico
+            if (testDataCache != null) {
+                String cachedDoc = testDataCache.getCachedDocument(documentType);
+                if (cachedDoc != null) {
                     org.slf4j.LoggerFactory.getLogger(AuthenticationSteps.class)
-                        .warn("Tipo de documento não suportado para geração automática: {}. Deixando valor original para validação pelo backend.", documentType);
-                    break;
+                        .debug("✅ [CACHE] Reutilizando {} do cache: {}", documentType, cachedDoc);
+                    documentNumber = cachedDoc;
+                }
+            }
+            
+            // Se não encontrou no cache, gerar novo documento
+            if (documentNumber == null) {
+                switch (documentType) {
+                    case "CPF":
+                        documentNumber = com.nulote.journey.fixtures.TestDataGenerator.generateUniqueCpf();
+                        break;
+                    case "CNPJ":
+                        documentNumber = com.nulote.journey.fixtures.TestDataGenerator.generateUniqueCnpj();
+                        break;
+                    case "CUIT":
+                        documentNumber = com.nulote.journey.fixtures.TestDataGenerator.generateUniqueCuit();
+                        break;
+                    case "DNI":
+                        documentNumber = com.nulote.journey.fixtures.TestDataGenerator.generateUniqueDni();
+                        break;
+                    case "RUT":
+                        documentNumber = com.nulote.journey.fixtures.TestDataGenerator.generateUniqueRut();
+                        break;
+                    case "CI":
+                        documentNumber = com.nulote.journey.fixtures.TestDataGenerator.generateUniqueCi();
+                        break;
+                    case "SSN":
+                        documentNumber = com.nulote.journey.fixtures.TestDataGenerator.generateUniqueSsn();
+                        break;
+                    default:
+                        // Para tipos não suportados (ex: PASSPORT), não gerar documento
+                        // Deixar que o backend valide e retorne erro apropriado
+                        // Não lançar exceção aqui - permitir que teste de validação funcione
+                        org.slf4j.LoggerFactory.getLogger(AuthenticationSteps.class)
+                            .warn("Tipo de documento não suportado para geração automática: {}. Deixando valor original para validação pelo backend.", documentType);
+                        break;
+                }
+                
+                // Adicionar ao cache para reutilização futura
+                if (testDataCache != null && documentNumber != null) {
+                    testDataCache.cacheDocument(documentType, documentNumber);
+                }
             }
             if (documentNumber != null) {
                 userData.put("documentNumber", documentNumber);
@@ -562,9 +584,8 @@ public class AuthenticationSteps {
         // Estratégia 2: Consumir da fila RabbitMQ (pode ter sido consumido por outros consumidores)
         // O evento é publicado via Outbox Pattern, que pode ter delay de 2-5 segundos
         try {
-            // Reduzir frequência de polling para evitar muitos logs
-            // Usar pollInterval maior para reduzir verbosidade
-            await().atMost(30, SECONDS).pollInterval(1, SECONDS)
+            // Usar configuração otimizada de timeout e polling
+            await().atMost(eventTimeoutSeconds, SECONDS).pollInterval(eventPollIntervalMs, MILLISECONDS)
                 .until(() -> {
                     var event = rabbitMQHelper.consumeMessage("otp.sent");
                     
@@ -1204,7 +1225,7 @@ public class AuthenticationSteps {
     @Então("as credenciais devem ser provisionadas")
     public void as_credenciais_devem_ser_provisionadas() {
         // Aguardar evento assíncrono ou verificar diretamente
-        await().atMost(30, SECONDS).pollInterval(500, MILLISECONDS)
+        await().atMost(eventTimeoutSeconds, SECONDS).pollInterval(eventPollIntervalMs, MILLISECONDS)
             .until(() -> {
                 var credentialsResponse = authClient.getCredentialsByUserUuid(
                     userFixture.getCreatedUserUuid());
@@ -1217,7 +1238,7 @@ public class AuthenticationSteps {
     @Então("o perfil deve ser criado automaticamente")
     public void o_perfil_deve_ser_criado_automaticamente() {
         // Verificar se perfil foi criado via evento ou diretamente
-        await().atMost(30, SECONDS).pollInterval(500, MILLISECONDS)
+        await().atMost(eventTimeoutSeconds, SECONDS).pollInterval(eventPollIntervalMs, MILLISECONDS)
             .until(() -> {
                 var profileResponse = profileClient.getProfileByUserUuid(
                     userFixture.getCreatedUserUuid());
@@ -1370,7 +1391,7 @@ public class AuthenticationSteps {
                 final String telefoneFinal = telefone; // Variável final para uso no lambda
                 try {
                     // Aguardar sincronização via evento user.updated.v1 (pode levar alguns segundos devido ao Outbox Pattern)
-                    await().atMost(15, SECONDS).pollInterval(1, SECONDS)
+                    await().atMost(eventTimeoutSeconds, SECONDS).pollInterval(eventPollIntervalMs, MILLISECONDS)
                         .until(() -> {
                             try {
                                 var authUserResponse = authClient.getCredentialsByUserUuid(userUuid);
@@ -1788,8 +1809,30 @@ public class AuthenticationSteps {
         if (userUuid != null) {
             userFixture.setCreatedUserUuid(userUuid);
             
-            // Aguardar provisionamento de credenciais e criação de perfil (tolerante a timeouts)
+            // Cache: Adicionar usuário e documento ao cache para reutilização futura
             final String userEmail = userData.get("email");
+            final String documentType = userData.get("documentType");
+            final String documentNumber = userData.get("documentNumber");
+            
+            if (testDataCache != null) {
+                if (userEmail != null) {
+                    testDataCache.cacheUser(userEmail, userUuid);
+                    var logger = org.slf4j.LoggerFactory.getLogger(AuthenticationSteps.class);
+                    logger.debug("✅ [CACHE] Usuário adicionado ao cache: email={}, uuid={}", userEmail, userUuid);
+                }
+                
+                // Adicionar documento ao cache se ainda não estiver (pode ter sido gerado sem cache)
+                if (documentType != null && documentNumber != null) {
+                    String cachedDoc = testDataCache.getCachedDocument(documentType);
+                    if (cachedDoc == null) {
+                        testDataCache.cacheDocument(documentType, documentNumber);
+                        var logger = org.slf4j.LoggerFactory.getLogger(AuthenticationSteps.class);
+                        logger.debug("✅ [CACHE] Documento {} adicionado ao cache: {}", documentType, documentNumber);
+                    }
+                }
+            }
+            
+            // Aguardar provisionamento de credenciais e criação de perfil (tolerante a timeouts)
             var logger = org.slf4j.LoggerFactory.getLogger(AuthenticationSteps.class);
             
             try {
@@ -1848,9 +1891,9 @@ public class AuthenticationSteps {
         String userUuid = userFixture.getCreatedUserUuid();
         if (userUuid != null) {
             logger.debug("Aguardando criação de credenciais para usuário: {}", userUuid);
-            // Aguardar até 5 segundos pelo evento credentials.provisioned.v1
+            // Aguardar pelo evento credentials.provisioned.v1 usando timeout configurado
             try {
-                await().atMost(5, SECONDS).pollInterval(500, MILLISECONDS)
+                await().atMost(eventTimeoutSeconds, SECONDS).pollInterval(eventPollIntervalMs, MILLISECONDS)
                     .until(() -> {
                         var message = rabbitMQHelper.consumeMessage("credentials.provisioned.v1");
                         if (message != null && message.getType().equals("credentials.provisioned.v1")) {
@@ -2147,7 +2190,7 @@ public class AuthenticationSteps {
     
     @Então("o evento {string} deve ser publicado com motivo {string}")
     public void o_evento_deve_ser_publicado_com_motivo(String eventType, String motivo) {
-        await().atMost(30, SECONDS).pollInterval(500, MILLISECONDS)
+        await().atMost(eventTimeoutSeconds, SECONDS).pollInterval(eventPollIntervalMs, MILLISECONDS)
             .until(() -> {
                 var message = rabbitMQHelper.consumeMessage(
                     "user.events", eventType);
@@ -3248,8 +3291,8 @@ public class AuthenticationSteps {
             final String[] otpCodeHolder = new String[1];
             final String finalOtpId = otpId; // Tornar efetivamente final
             
-            // Reduzir timeout para 3 segundos pois o evento pode já ter sido consumido
-            await().atMost(3, SECONDS).pollInterval(300, MILLISECONDS)
+            // Usar timeout configurado (otimizado para eventos rápidos)
+            await().atMost(eventTimeoutSeconds, SECONDS).pollInterval(eventPollIntervalMs, MILLISECONDS)
                 .until(() -> {
                     var event = rabbitMQHelper.consumeMessage("otp.sent");
                     if (event != null) {
@@ -3402,7 +3445,7 @@ public class AuthenticationSteps {
         if (userUuid != null) {
             logger.debug("Aguardando provisionamento de credenciais para usuário {} antes de resetar senha", userUuid);
             try {
-                await().atMost(15, SECONDS).pollInterval(500, MILLISECONDS)
+                await().atMost(eventTimeoutSeconds, SECONDS).pollInterval(eventPollIntervalMs, MILLISECONDS)
                     .until(() -> {
                         try {
                             var credentialsResponse = authClient.getCredentialsByUserUuid(userUuid);

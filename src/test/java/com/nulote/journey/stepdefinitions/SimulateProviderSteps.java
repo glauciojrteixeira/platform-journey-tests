@@ -5,11 +5,13 @@ import com.nulote.journey.utils.RabbitMQHelper;
 import io.cucumber.java.pt.Dado;
 import io.cucumber.java.pt.Então;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.test.context.ContextConfiguration;
 
 import java.util.Map;
 import java.util.concurrent.atomic.AtomicReference;
 
+import static java.util.concurrent.TimeUnit.MILLISECONDS;
 import static java.util.concurrent.TimeUnit.SECONDS;
 import static org.awaitility.Awaitility.await;
 import static org.assertj.core.api.Assertions.assertThat;
@@ -26,6 +28,13 @@ public class SimulateProviderSteps {
     @Autowired
     private E2EConfiguration config;
     
+    // Configurações de timeout para eventos assíncronos
+    @Value("${e2e.event-timeout-seconds:3}")
+    private long eventTimeoutSeconds;
+    
+    @Value("${e2e.event-poll-interval-ms:300}")
+    private long eventPollIntervalMs;
+    
     /**
      * Valida que o evento contém o header simulate-provider com o valor esperado.
      */
@@ -37,8 +46,8 @@ public class SimulateProviderSteps {
             // Aguardar evento ser publicado e consumir
             AtomicReference<RabbitMQHelper.Event> eventRef = new AtomicReference<>();
             await()
-                .atMost(15, SECONDS)
-                .pollInterval(1, SECONDS)
+                .atMost(eventTimeoutSeconds, SECONDS)
+                .pollInterval(eventPollIntervalMs, MILLISECONDS)
                 .until(() -> {
                     var message = rabbitMQHelper.consumeMessage(eventType);
                     if (message != null && message.getType().equals(eventType)) {

@@ -13,11 +13,13 @@ import io.cucumber.java.pt.Então;
 import io.cucumber.java.pt.Quando;
 import io.restassured.response.Response;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.test.context.ContextConfiguration;
 
 import java.util.Map;
 import java.util.concurrent.atomic.AtomicReference;
 
+import static java.util.concurrent.TimeUnit.MILLISECONDS;
 import static java.util.concurrent.TimeUnit.SECONDS;
 import static org.awaitility.Awaitility.await;
 import static org.assertj.core.api.Assertions.assertThat;
@@ -34,6 +36,13 @@ public class MultiCountrySteps {
     
     @Autowired
     private E2EConfiguration config;
+    
+    // Configurações de timeout para eventos assíncronos
+    @Value("${e2e.event-timeout-seconds:3}")
+    private long eventTimeoutSeconds;
+    
+    @Value("${e2e.event-poll-interval-ms:300}")
+    private long eventPollIntervalMs;
     
     @Autowired
     private IdentityServiceClient identityClient;
@@ -169,8 +178,8 @@ public class MultiCountrySteps {
             // Aguardar evento ser publicado e consumir
             AtomicReference<RabbitMQHelper.Event> eventRef = new AtomicReference<>();
             await()
-                .atMost(15, SECONDS)
-                .pollInterval(1, SECONDS)
+                .atMost(eventTimeoutSeconds, SECONDS)
+                .pollInterval(eventPollIntervalMs, MILLISECONDS)
                 .until(() -> {
                     var message = rabbitMQHelper.consumeMessage(eventType);
                     if (message != null && message.getType().equals(eventType)) {
@@ -398,8 +407,8 @@ public class MultiCountrySteps {
             // Aguardar evento ser processado
             AtomicReference<RabbitMQHelper.Event> eventRef = new AtomicReference<>();
             await()
-                .atMost(15, SECONDS)
-                .pollInterval(1, SECONDS)
+                .atMost(eventTimeoutSeconds, SECONDS)
+                .pollInterval(eventPollIntervalMs, MILLISECONDS)
                 .until(() -> {
                     var message = rabbitMQHelper.consumeMessage(eventType);
                     if (message != null && message.getType().equals(eventType)) {
@@ -461,8 +470,8 @@ public class MultiCountrySteps {
             // Aguardar evento ser publicado
             AtomicReference<RabbitMQHelper.Event> eventRef = new AtomicReference<>();
             await()
-                .atMost(15, SECONDS)
-                .pollInterval(1, SECONDS)
+                .atMost(eventTimeoutSeconds, SECONDS)
+                .pollInterval(eventPollIntervalMs, MILLISECONDS)
                 .until(() -> {
                     var message = rabbitMQHelper.consumeMessage(eventType);
                     if (message != null && message.getType().equals(eventType)) {
