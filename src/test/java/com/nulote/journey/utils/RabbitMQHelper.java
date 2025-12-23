@@ -248,7 +248,7 @@ public class RabbitMQHelper {
             case "user.created.v1":
                 return "auth.user-created.queue";
             case "auth.logout":
-                // Evento de logout - pode não estar implementado ainda
+                // Evento de logout publicado no exchange auth.events quando logout ocorre
                 return "auth.logout.queue";
             case "delivery.tracking.created.v1":
                 // Evento publicado no exchange delivery-tracker.events
@@ -397,9 +397,9 @@ public class RabbitMQHelper {
             
             // Mensagem específica para auth.logout
             if (queueName.contains("logout")) {
-                logger.warn("⚠️ [TROUBLESHOOTING] Evento auth.logout pode não estar implementado ainda.");
-                logger.warn("⚠️ [TROUBLESHOOTING] Verifique se o Auth Service publica eventos de logout.");
-                logger.warn("⚠️ [TROUBLESHOOTING] Se não estiver implementado, marque o cenário como @not_implemented.");
+                logger.warn("⚠️ [TROUBLESHOOTING] Evento auth.logout deve ser publicado pelo Auth Service após logout.");
+                logger.warn("⚠️ [TROUBLESHOOTING] Verifique se o evento está sendo publicado no exchange auth.events.");
+                logger.warn("⚠️ [TROUBLESHOOTING] Verifique se a fila auth.logout.queue foi criada e está configurada corretamente.");
             }
             
             return null;

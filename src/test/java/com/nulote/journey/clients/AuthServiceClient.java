@@ -444,12 +444,32 @@ public class AuthServiceClient {
             .response();
     }
     
+    public Response refreshToken(Object request) {
+        RequestSpecification spec = RestAssured.given()
+            .baseUri(getBaseUrl())
+            .contentType(ContentType.JSON)
+            .header("request-trace-id", getRequestTraceId());
+        spec = addRequiredHeaders(spec);
+        return spec.body(request)
+            .when()
+            .post("/api/v1/auth/token/refresh")
+            .then()
+            .extract()
+            .response();
+    }
+    
     public Response logout(String token) {
         RequestSpecification spec = RestAssured.given()
             .baseUri(getBaseUrl())
             .contentType(ContentType.JSON)
-            .header("request-trace-id", getRequestTraceId())
-            .header("Authorization", "Bearer " + token);
+            .header("request-trace-id", getRequestTraceId());
+        
+        // Adicionar header Authorization apenas se token não for null
+        if (token != null) {
+            spec = spec.header("Authorization", "Bearer " + token);
+        }
+        // Se token for null, não adicionar header Authorization (para testar cenário de erro)
+        
         spec = addRequiredHeaders(spec);
         return spec.when()
             .post("/api/v1/auth/logout")

@@ -428,6 +428,11 @@ public class TestDataGenerator {
     /**
      * Gera um SSN único para testes (EUA).
      * 
+     * Regras de validação do SSN:
+     * 1. Area Number (primeiros 3 dígitos): não pode ser "000", "666", ou "900-999"
+     * 2. Group Number (dígitos 4-5): não pode ser "00"
+     * 3. Serial Number (últimos 4 dígitos): não pode ser "0000"
+     * 
      * @return SSN único com 9 dígitos (formato XXX-XX-XXXX)
      */
     public static String generateUniqueSsn() {
@@ -445,13 +450,47 @@ public class TestDataGenerator {
             ssnNumber = (ssnNumber % 899000000L) + 1000000; // Entre 100-000-000 e 899-999-999
         }
         
+        // Garantir que Group Number (dígitos 4-5) não seja "00"
+        int groupNumber = (int) ((ssnNumber / 10000) % 100);
+        if (groupNumber == 0) {
+            // Se Group Number for 00, ajustar para um valor válido (01-99)
+            ssnNumber = (ssnNumber / 10000) * 10000 + (Math.abs(uniqueValue) % 99 + 1) * 10000 + (ssnNumber % 10000);
+        }
+        
+        // Garantir que Serial Number (últimos 4 dígitos) não seja "0000"
+        int serialNumber = (int) (ssnNumber % 10000);
+        if (serialNumber == 0) {
+            // Se Serial Number for 0000, ajustar para um valor válido (0001-9999)
+            ssnNumber = (ssnNumber / 10000) * 10000 + (Math.abs(uniqueValue) % 9999 + 1);
+        }
+        
         String ssn = String.format("%09d", ssnNumber);
         String formatted = ssn.substring(0, 3) + "-" + ssn.substring(3, 5) + "-" + ssn.substring(5, 9);
         
+        // Validar novamente após formatação
+        int area = Integer.parseInt(ssn.substring(0, 3));
+        int group = Integer.parseInt(ssn.substring(3, 5));
+        int serial = Integer.parseInt(ssn.substring(5, 9));
+        
+        // Se ainda não for válido, gerar um novo
+        if (area == 0 || area == 666 || area >= 900 || group == 0 || serial == 0) {
+            // Gerar um SSN válido garantindo todas as regras
+            area = (int) ((Math.abs(uniqueValue) % 899) + 1); // 1-899 (evita 000, 666, 900-999)
+            if (area == 666) area = 667; // Evitar 666
+            group = (int) ((Math.abs(uniqueValue) % 99) + 1); // 1-99 (evita 00)
+            serial = (int) ((Math.abs(uniqueValue) % 9999) + 1); // 1-9999 (evita 0000)
+            
+            formatted = String.format("%03d-%02d-%04d", area, group, serial);
+        }
+        
         if (usedSsns.contains(formatted)) {
-            ssnNumber = (System.nanoTime() % 899000000L) + 1000000;
-            ssn = String.format("%09d", ssnNumber);
-            formatted = ssn.substring(0, 3) + "-" + ssn.substring(3, 5) + "-" + ssn.substring(5, 9);
+            // Se já foi usado, gerar um novo com valores diferentes
+            long newUnique = System.nanoTime();
+            area = (int) ((Math.abs(newUnique) % 899) + 1);
+            if (area == 666) area = 667;
+            group = (int) ((Math.abs(newUnique) % 99) + 1);
+            serial = (int) ((Math.abs(newUnique) % 9999) + 1);
+            formatted = String.format("%03d-%02d-%04d", area, group, serial);
         }
         usedSsns.add(formatted);
         return formatted;
