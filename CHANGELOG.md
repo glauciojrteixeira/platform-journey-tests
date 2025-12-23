@@ -5,7 +5,7 @@ Todas as mudanças notáveis neste projeto serão documentadas neste arquivo.
 O formato é baseado em [Keep a Changelog](https://keepachangelog.com/pt-BR/1.0.0/),
 e este projeto adere ao [Versionamento Semântico](https://semver.org/lang/pt-BR/).
 
-## [0.0.8-SNAPSHOT] - 2025-12-22
+## [0.0.9-SNAPSHOT] - 2025-12-22
 
 ### Added
 - **Testes E2E para Refresh Token**: Implementação completa de testes E2E para funcionalidade de refresh token
@@ -27,6 +27,17 @@ e este projeto adere ao [Versionamento Semântico](https://semver.org/lang/pt-BR
   - Geração de SSNs válidos para testes E2E
 
 ### Changed
+- **AuthenticationSteps**: Adicionadas step definitions para refresh token
+  - 20+ novas step definitions para cenários de refresh token
+  - Validações ajustadas para mensagens genéricas da API
+  - Integração com AuthServiceClient.refreshToken()
+- **TestDataGenerator**: Correção do método generateUniqueSsn()
+  - Validação completa de todas as regras do SSN
+  - Geração de SSNs válidos para testes E2E
+
+## [0.0.8-SNAPSHOT] - 2025-12-22
+
+### Added
 - **Documentação de Análise e Otimização**: Documentação completa de análises de performance e otimizações
   - `ANALISE_OTIMIZACAO_CENARIOS.md`: Análise detalhada de otimização de cenários de teste
   - `OTIMIZACAO_PERFORMANCE.md`: Estratégias e melhorias de performance implementadas
