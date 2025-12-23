@@ -23,10 +23,10 @@ Este documento mapeia todas as jornadas previstas nos microserviços da VS Ident
 | J1.7 | Alteração de Senha | ❌ Não testado | - | Não implementado |
 | J1.8 | Desativação de Conta | ❌ Não testado | - | Não implementado |
 | J1.9 | Reativação de Conta | ❌ Não testado | - | Não implementado |
-| J1.10 | Logout | ❌ Não testado | - | Não implementado |
+| J1.10 | Logout | ✅ Testado | `logout.feature` | ✅ Implementado |
 | J1.11 | Verificação de Email/Telefone | ❌ Não testado | - | Não implementado |
 
-**Cobertura**: 2/11 (18%) - Parcial
+**Cobertura**: 3/11 (27%) - Parcial
 
 ---
 
@@ -107,20 +107,20 @@ Este documento mapeia todas as jornadas previstas nos microserviços da VS Ident
 
 | Segmento | Total Jornadas | Testadas | Parcial | Não Testadas | Cobertura |
 |----------|----------------|----------|--------|--------------|-----------|
-| Segmento 1 | 11 | 0 | 2 | 9 | 18% ⚠️ |
+| Segmento 1 | 11 | 1 | 2 | 8 | 27% ⚠️ |
 | Segmento 2 | 17 | 0 | 0 | 17 | 0% ❌ |
 | Segmento 3 | 13 | 0 | 1 | 12 | 8% ❌ |
 | Segmento 4 | 14 | 0 | 0 | 14 | 0% ❌ |
 | Transversais | 4 | 0 | 0 | 4 | 0% ❌ |
-| **TOTAL** | **55** | **0** | **3** | **52** | **5%** ⚠️ |
+| **TOTAL** | **55** | **1** | **3** | **51** | **7%** ⚠️ |
 
 ### **Por Status de Implementação**
 
 | Status | Quantidade | Jornadas |
 |--------|------------|----------|
-| ✅ Totalmente Testado | 0 | - |
+| ✅ Totalmente Testado | 1 | J1.10 |
 | ⚠️ Parcialmente Testado | 3 | J1.1, J1.2, J3.1 |
-| ❌ Não Testado | 52 | Todas as outras |
+| ❌ Não Testado | 51 | Todas as outras |
 
 ---
 
@@ -135,8 +135,7 @@ Este documento mapeia todas as jornadas previstas nos microserviços da VS Ident
 4. **J1.7: Alteração de Senha** - Segurança básica
 5. **J1.8: Desativação de Conta** - Requisito de LGPD
 6. **J1.9: Reativação de Conta** - Recuperação de conta
-7. **J1.10: Logout** - Funcionalidade básica
-8. **J1.11: Verificação de Email/Telefone** - Validação de dados
+7. **J1.11: Verificação de Email/Telefone** - Validação de dados
 
 #### **Segmento 2 (Média Prioridade)**
 1. **J2.1: Registro com Validação CPF** - Diferencial do segmento
@@ -191,7 +190,7 @@ Este documento mapeia todas as jornadas previstas nos microserviços da VS Ident
 | J1.1 | `/api/auth/social-login` | POST | ❌ Não implementado | ❌ Não testado |
 | J4.3 | `/api/auth/sso/login` | POST | ✅ Implementado | ❌ Não testado |
 | J4.2 | `/api/auth/sso/test` | POST | ⚠️ Desconhecido | ❌ Não testado |
-| J1.10, JT.4 | `/api/auth/logout` | POST | ⚠️ Desconhecido | ❌ Não testado |
+| J1.10, JT.4 | `/api/auth/logout` | POST | ✅ Implementado | ✅ Testado |
 | J1.1, J1.5, J1.6, J1.8, J1.9, J1.11, JT.2, JT.3 | `/api/auth/otp/request` | POST | ❌ Não implementado | ❌ Não testado |
 | J1.1, J1.5, J1.6, J1.8, J1.9, J1.11, JT.2, JT.3 | `/api/auth/otp/validate` | POST | ❌ Não implementado | ❌ Não testado |
 | JT.1 | `/api/auth/token/validate` | POST | ✅ Implementado | ❌ Não testado |
@@ -237,7 +236,7 @@ Este documento mapeia todas as jornadas previstas nos microserviços da VS Ident
 3. 🔴 J1.3: Login Recorrente
 4. 🔴 J1.4: Atualização de Perfil
 5. 🔴 J1.7: Alteração de Senha
-6. 🔴 J1.10: Logout
+6. ✅ J1.10: Logout (já implementado)
 
 ### **Fase 2: Jornadas de Segurança e LGPD** (Alta Prioridade)
 1. 🔴 J1.5: Alteração de Dados Pessoais

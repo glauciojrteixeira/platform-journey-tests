@@ -12,19 +12,19 @@
 - ✅ Todos os segmentos possuem arquivos `.feature` com cenários bem definidos
 
 ### **Cobertura de Step Definitions (Implementação)**
-- ✅ **7/55 jornadas com step definitions implementados** (13%)
-- ❌ **48/55 jornadas aguardando implementação** (87%)
+- ✅ **8/55 jornadas com step definitions implementados** (15%)
+- ❌ **47/55 jornadas aguardando implementação** (85%)
 
 ### **Distribuição por Segmento**
 
 | Segmento | Features Criadas | Step Definitions | Cobertura | Status |
 |----------|------------------|------------------|-----------|--------|
-| **Segmento 1** | 11/11 (100%) | 6/11 (55%) | ⚠️ Parcial | ✅ Melhor cobertura |
+| **Segmento 1** | 11/11 (100%) | 7/11 (64%) | ⚠️ Parcial | ✅ Melhor cobertura |
 | **Segmento 2** | 7/7 (100%) | 0/7 (0%) | ❌ Não implementado | 🔴 Aguardando |
 | **Segmento 3** | 7/7 (100%) | 1/7 (14%) | ⚠️ Parcial | ⚠️ Mínimo |
 | **Segmento 4** | 8/8 (100%) | 0/8 (0%) | ❌ Não implementado | 🔴 Aguardando |
 | **Transversais** | 1/1 (100%) | 0/1 (0%) | ❌ Não implementado | 🔴 Aguardando |
-| **TOTAL** | **55/55 (100%)** | **7/55 (13%)** | ⚠️ Parcial | ⚠️ Geral |
+| **TOTAL** | **55/55 (100%)** | **8/55 (15%)** | ⚠️ Parcial | ⚠️ Geral |
 
 ---
 
@@ -150,7 +150,7 @@
 | Métrica | Segmento 1 | Segmento 2 | Segmento 3 | Segmento 4 | Transversais | **TOTAL** |
 |---------|------------|-------------|------------|------------|--------------|-----------|
 | **Features Criadas** | 11/11 (100%) | 7/7 (100%) | 7/7 (100%) | 8/8 (100%) | 1/4 (25%) | **34/37 (92%)** |
-| **Step Definitions** | 6/11 (55%) | 0/7 (0%) | 1/7 (14%) | 0/8 (0%) | 0/1 (0%) | **7/34 (21%)** |
+| **Step Definitions** | 7/11 (64%) | 0/7 (0%) | 1/7 (14%) | 0/8 (0%) | 0/1 (0%) | **8/34 (24%)** |
 | **Cenários Executáveis** | 26/41 (63%) | 0/21 (0%) | 1/24 (4%) | 0/30 (0%) | 0/4 (0%) | **27/120 (23%)** |
 
 **Nota**: Considerando que Segmento 2 herda 11 jornadas do Segmento 1, o total real de jornadas únicas é 55.
@@ -159,8 +159,8 @@
 
 | Status | Segmento 1 | Segmento 2 | Segmento 3 | Segmento 4 | Transversais | **TOTAL** |
 |--------|------------|-------------|------------|------------|--------------|-----------|
-| ✅ Completo | 5 | 0 | 0 | 0 | 0 | **5** |
-| ⚠️ Parcial | 6 | 0 | 1 | 0 | 0 | **7** |
+| ✅ Completo | 6 | 0 | 0 | 0 | 0 | **6** |
+| ⚠️ Parcial | 5 | 0 | 1 | 0 | 0 | **6** |
 | ❌ Não Implementado | 0 | 7 | 6 | 8 | 1 | **22** |
 
 ---
@@ -228,7 +228,7 @@
 
 ### **Pontos Positivos**
 - ✅ **92% das features criadas** - Quase todas as jornadas têm arquivos `.feature` bem definidos
-- ✅ **Segmento 1 bem coberto** - 55% de implementação, foco nas jornadas críticas
+- ✅ **Segmento 1 bem coberto** - 64% de implementação, foco nas jornadas críticas
 - ✅ **Documentação completa** - Features bem estruturadas e organizadas por segmento
 
 ### **Pontos de Atenção**
@@ -239,7 +239,7 @@
 ### **Recomendação Final**
 **Status**: ✅ **Features Completas** | ❌ **Implementação Parcial**
 
-Todos os segmentos estão **bem cobertos em termos de features Gherkin**, mas a implementação de step definitions está concentrada apenas no **Segmento 1 (13% geral)**.
+Todos os segmentos estão **bem cobertos em termos de features Gherkin**, mas a implementação de step definitions está concentrada apenas no **Segmento 1 (15% geral)**.
 
 **Próxima ação prioritária**: 
 1. Resolver dependência do serviço OTP (bloqueia 20+ cenários)

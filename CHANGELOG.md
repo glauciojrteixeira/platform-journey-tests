@@ -8,6 +8,25 @@ e este projeto adere ao [Versionamento Semântico](https://semver.org/lang/pt-BR
 ## [0.0.8-SNAPSHOT] - 2025-12-22
 
 ### Added
+- **Testes E2E para Refresh Token**: Implementação completa de testes E2E para funcionalidade de refresh token
+  - `token_refresh.feature`: Feature file com 7 cenários de teste para refresh token
+  - Step definitions para refresh token (20+ steps) em `AuthenticationSteps.java`
+  - Método `refreshToken()` adicionado ao `AuthServiceClient` para chamar endpoint de refresh
+  - Cenários implementados:
+    - Renovação bem-sucedida com refresh token válido
+    - Falha com refresh token nulo
+    - Falha com refresh token vazio
+    - Falha com refresh token inválido (formato incorreto)
+    - Falha com refresh token expirado
+    - Falha com refresh token revogado
+    - Falha se usuário está inativo (marcado como @not_implemented - requer sincronização via eventos)
+- **Correção de Geração de SSN**: Correção do método `generateUniqueSsn()` para validar todas as regras do SSN
+  - Validação de Area Number (não pode ser 000, 666 ou 900-999)
+  - Validação de Group Number (não pode ser 00)
+  - Validação de Serial Number (não pode ser 0000)
+  - Geração de SSNs válidos para testes E2E
+
+### Changed
 - **Documentação de Análise e Otimização**: Documentação completa de análises de performance e otimizações
   - `ANALISE_OTIMIZACAO_CENARIOS.md`: Análise detalhada de otimização de cenários de teste
   - `OTIMIZACAO_PERFORMANCE.md`: Estratégias e melhorias de performance implementadas

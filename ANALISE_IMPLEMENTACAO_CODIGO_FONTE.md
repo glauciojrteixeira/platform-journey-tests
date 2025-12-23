@@ -197,7 +197,8 @@
 **Arquivo:** `auth-service/api/src/main/java/.../controllers/AuthenticationController.java`
 - ✅ Endpoint `POST /v1/auth/logout`
 - ✅ Revoga token no servidor
-- ⚠️ **Falta:** Publicação de evento `auth.logout` (mencionado nos testes)
+- ✅ Publica evento `auth.logout` no RabbitMQ (exchange auth.events)
+- ✅ Invalida sessão atual do usuário
 
 **Código:**
 ```158:184:auth-service/api/src/main/java/com/projeto2026/auth_service/infrastructure/controllers/AuthenticationController.java
@@ -231,7 +232,11 @@
     }
 ```
 
-**Conclusão:** ✅ **Logout está implementado**, mas falta evento `auth.logout`.
+**Conclusão:** ✅ **Logout está completamente implementado**, incluindo:
+- Revogação de token
+- Invalidação de sessão
+- Publicação de evento `auth.logout` no RabbitMQ
+- Auditoria completa
 
 ---
 
@@ -360,7 +365,7 @@
 | **OTP - WhatsApp** | ✅ Implementado | ⚠️ Pendente (config) | ⚠️ Configuração |
 | **Token Revocation** | ✅ Implementado | ✅ Implementado | ✅ Sem gap |
 | **Refresh Token** | ⚠️ Parcial | ❌ Pendente | ❌ Implementação incorreta |
-| **Logout** | ✅ Implementado | ⚠️ Pendente (evento) | ⚠️ Falta evento |
+| **Logout** | ✅ Implementado | ✅ Implementado | ✅ Sem gap |
 | **MFA** | ⚠️ Modelo apenas | ❌ Pendente | ❌ Lógica não implementada |
 | **Device Management** | ❌ Não implementado | ❌ Pendente | ❌ Não implementado |
 | **CPF Validation** | ❌ Não implementado | ❌ Pendente | ❌ Não implementado |
@@ -377,12 +382,11 @@
 1. **OTP completo** - Solicitação e validação funcionam
 2. **OTP via WhatsApp** - Implementado (requer config)
 3. **Token revocation** - Funciona corretamente
-4. **Logout básico** - Funciona (falta evento)
+4. **Logout completo** - Funciona com evento `auth.logout` e invalidação de sessão
 
 ### **⚠️ O que está Parcial:**
 1. **Refresh Token** - Endpoint existe mas implementação está incorreta
 2. **MFA** - Modelo existe mas lógica não implementada
-3. **Logout** - Funciona mas falta evento `auth.logout`
 
 ### **❌ O que não está Implementado:**
 1. **MFA completo** - Endpoints e lógica de negócio
