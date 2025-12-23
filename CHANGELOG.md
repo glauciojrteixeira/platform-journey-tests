@@ -47,6 +47,13 @@ e este projeto adere ao [Versionamento Semântico](https://semver.org/lang/pt-BR
   - `scripts/selective-test-execution.sh`: Script para execução seletiva de testes baseado em tags e critérios
 
 ### Changed
+- **AuthenticationSteps**: Adicionadas step definitions para refresh token
+  - 20+ novas step definitions para cenários de refresh token
+  - Validações ajustadas para mensagens genéricas da API
+  - Integração com AuthServiceClient.refreshToken()
+- **TestDataGenerator**: Correção do método generateUniqueSsn()
+  - Validação completa de todas as regras do SSN
+  - Geração de SSNs válidos para testes E2E
 - **E2EConfiguration**: Adicionadas configurações de cache e otimizações
   - Configuração de cache de dados de teste
   - Configurações de otimização de performance
