@@ -5,6 +5,14 @@ Todas as mudanças notáveis neste projeto serão documentadas neste arquivo.
 O formato é baseado em [Keep a Changelog](https://keepachangelog.com/pt-BR/1.0.0/),
 e este projeto adere ao [Versionamento Semântico](https://semver.org/lang/pt-BR/).
 
+## [0.0.11-SNAPSHOT] - 2025-12-27
+
+### Changed
+- **Git Configuration**: Adicionada seção de Logs no `.gitignore` para excluir arquivos de log
+  - Adicionadas regras: `*.log`, `*.log.*`, `*.log.*.gz`, `*.pid`, `logs/`, `**/logs/`, `**/logs/**`
+  - Alinhamento com playbook 021.00 - Git Commit Best Practices
+  - Garantia de que arquivos de log nunca serão versionados
+
 ## [0.0.10-SNAPSHOT] - 2025-12-27
 
 ### Changed

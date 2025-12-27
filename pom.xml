@@ -10,7 +10,7 @@
 	</parent>
 	<groupId>com.nulote</groupId>
 	<artifactId>platform-journey-tests</artifactId>
-	<version>0.0.10-SNAPSHOT</version>
+	<version>0.0.11-SNAPSHOT</version>
 	<name>platform-journey-tests</name>
 	<description>Testes E2E com BDD (Cucumber + Gherkin) para validar jornadas de negócio em microserviços Java cloud-native</description>
 	<url/>

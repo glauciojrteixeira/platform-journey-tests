@@ -37,3 +37,12 @@ application-sit-local.yml
 ### Allure ###
 allure-results/
 .allure/
+
+### Logs ###
+*.log
+*.log.*
+*.log.*.gz
+*.pid
+logs/
+**/logs/
+**/logs/**
