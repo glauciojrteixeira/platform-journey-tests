@@ -142,5 +142,5 @@ grep "MULTI-COUNTRY" target/surefire-reports/*.txt
 ## 📚 Referências
 
 - `ANALISE_LOGS_MULTI_COUNTRY.md` - Análise dos problemas identificados
-- `playbooks/architecture-playbook/001.00 - MULTI-COUNTRY-ARCHITECTURE-STRATEGY.md` - Estratégia de arquitetura
+- `playbooks/architecture-playbook/022.00 - MULTI-COUNTRY-ARCHITECTURE-STRATEGY.md` - Estratégia de arquitetura
 

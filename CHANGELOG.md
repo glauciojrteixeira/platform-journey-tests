@@ -5,6 +5,15 @@ Todas as mudanças notáveis neste projeto serão documentadas neste arquivo.
 O formato é baseado em [Keep a Changelog](https://keepachangelog.com/pt-BR/1.0.0/),
 e este projeto adere ao [Versionamento Semântico](https://semver.org/lang/pt-BR/).
 
+## [0.0.10-SNAPSHOT] - 2025-12-27
+
+### Changed
+- **Documentation**: Reorganização completa de documentação conforme Nota Técnica 011
+  - Removidos documentos operacionais (momentâneos) da raiz do projeto
+  - Documentos permanentes reorganizados em `docs/analysis/`, `docs/guides/`, `docs/plans/`, `docs/lessons-learned/` e `docs/verification/`
+  - Atualizado `docs/INDEX.md` com estrutura completa e organizada
+  - Raiz contém apenas `README.md` e `CHANGELOG.md` (conforme playbook)
+
 ## [0.0.9-SNAPSHOT] - 2025-12-22
 
 ### Added

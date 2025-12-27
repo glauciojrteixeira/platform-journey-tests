@@ -1,7 +1,7 @@
 # Índice de Documentação - Platform Journey Tests
 
-**Última Atualização:** 2025-12-09  
-**Versão:** 1.1
+**Última Atualização:** 2025-12-27  
+**Versão:** 1.2
 
 ---
 
@@ -16,7 +16,21 @@ Este projeto implementa testes E2E (End-to-End) utilizando BDD (Behavior-Driven 
 Documentos de análise e diagnóstico organizados em `analysis/`:
 
 - **[ANALISE_CONFORMIDADE.md](analysis/ANALISE_CONFORMIDADE.md)** - Análise de conformidade
+- **[ANALISE_CONFORMIDADE_TAGS_CENARIOS_EXISTENTES.md](analysis/ANALISE_CONFORMIDADE_TAGS_CENARIOS_EXISTENTES.md)** - Análise de conformidade de tags e cenários existentes
+- **[ANALISE_COBERTURA_CROSS_VS.md](analysis/ANALISE_COBERTURA_CROSS_VS.md)** - Análise de cobertura cross Value Stream
+- **[ANALISE_ERROS_RESTANTES.md](analysis/ANALISE_ERROS_RESTANTES.md)** - Análise de erros restantes
+- **[ANALISE_ERROS_TESTES.md](analysis/ANALISE_ERROS_TESTES.md)** - Análise de erros em testes
+- **[ANALISE_GERENCIAMENTO_RECURSOS.md](analysis/ANALISE_GERENCIAMENTO_RECURSOS.md)** - Análise de gerenciamento de recursos
+- **[ANALISE_IMPLEMENTACAO_CODIGO_FONTE.md](analysis/ANALISE_IMPLEMENTACAO_CODIGO_FONTE.md)** - Análise do que está implementado no código-fonte
+- **[ANALISE_LOGS_MULTI_COUNTRY.md](analysis/ANALISE_LOGS_MULTI_COUNTRY.md)** - Análise de logs multi-country
+- **[ANALISE_OTIMIZACAO_CENARIOS.md](analysis/ANALISE_OTIMIZACAO_CENARIOS.md)** - Análise de otimização de cenários
+- **[ANALISE_PROBLEMA_DOCUMENTTYPE.md](analysis/ANALISE_PROBLEMA_DOCUMENTTYPE.md)** - Análise do problema DocumentType
+- **[BLOQUEIO_IP_ANALISE.md](analysis/BLOQUEIO_IP_ANALISE.md)** - Análise de bloqueio de IP
+- **[COMPARACAO_CENARIOS_DOCUMENTACAO_VS_IMPLEMENTACAO.md](analysis/COMPARACAO_CENARIOS_DOCUMENTACAO_VS_IMPLEMENTACAO.md)** - Comparação entre cenários documentados e implementados
+- **[COMPARACAO_WHITELIST_VS_RATE_LIMIT.md](analysis/COMPARACAO_WHITELIST_VS_RATE_LIMIT.md)** - Comparação entre whitelist e rate limit
 - **[DIAGNOSTICO_MICROSERVICES.md](analysis/DIAGNOSTICO_MICROSERVICES.md)** - Diagnóstico de microserviços
+- **[FEATURES_PENDENTES_ANALISE.md](analysis/FEATURES_PENDENTES_ANALISE.md)** - Análise de features pendentes
+- **[RESUMO_FEATURES_PENDENTES.md](analysis/RESUMO_FEATURES_PENDENTES.md)** - Resumo de features pendentes
 - **[TEST_COVERAGE_ANALYSIS.md](analysis/TEST_COVERAGE_ANALYSIS.md)** - Análise de cobertura de testes
 
 ---
@@ -46,6 +60,8 @@ Documentos de verificação e validação organizados em `verification/`:
 
 Documentos de planejamento organizados em `plans/`:
 
+- **[IMPLEMENTACAO_ABORDAGEM_HIBRIDA.md](plans/IMPLEMENTACAO_ABORDAGEM_HIBRIDA.md)** - Implementação de abordagem híbrida
+- **[IMPLEMENTACAO_MULTI_VHOST.md](plans/IMPLEMENTACAO_MULTI_VHOST.md)** - Implementação multi-VHost
 - **[NEXT_STEPS.md](plans/NEXT_STEPS.md)** - Próximos passos
 - **[OTP_IMPLEMENTATION_PLAN.md](plans/OTP_IMPLEMENTATION_PLAN.md)** - Plano de implementação OTP
 - **[PLANO_ACAO_SEGMENTO1.md](plans/PLANO_ACAO_SEGMENTO1.md)** - Plano de ação do Segmento 1
@@ -59,27 +75,43 @@ Documentos de planejamento organizados em `plans/`:
 
 ## 📖 Guias
 
-Documentos de guias e explicações organizados em `guides/`:
+Documentos de guias, lições aprendidas e explicações organizados em `guides/`:
 
 - **[ALLURE_REPORT.md](guides/ALLURE_REPORT.md)** - Guia de relatórios Allure
 - **[CENARIOS_TESTE_SIMULACAO_PROVIDERS.md](guides/CENARIOS_TESTE_SIMULACAO_PROVIDERS.md)** - Cenários de teste de simulação de providers
 - **[COBERTURA_COMPLETA_SEGMENTOS.md](guides/COBERTURA_COMPLETA_SEGMENTOS.md)** - Cobertura completa de segmentos
 - **[COMPLETE_REGISTRATION_FLOW_TESTS.md](guides/COMPLETE_REGISTRATION_FLOW_TESTS.md)** - Testes de fluxo completo de registro com OTP
+- **[CONFIGURACAO_ENV.md](guides/CONFIGURACAO_ENV.md)** - Configuração de ambiente
 - **[CONFIGURATION_SUMMARY.md](guides/CONFIGURATION_SUMMARY.md)** - Resumo de configuração
-- **[DEPENDENCIES_EXTERNAS.md](guides/DEPENDENCIES_EXTERNAS.md)** - Dependências externas
+- **[CONTRIBUTING.md](guides/CONTRIBUTING.md)** - Guia de contribuição
+- **[DEPENDENCIAS_EXTERNAS.md](guides/DEPENDENCIAS_EXTERNAS.md)** - Dependências externas
+- **[EXEMPLO_CODIGO_COMPLETO.md](guides/EXEMPLO_CODIGO_COMPLETO.md)** - Exemplo de código completo
 - **[FEATURES_SUMMARY.md](guides/FEATURES_SUMMARY.md)** - Resumo de features
 - **[IMPLEMENTACAO_SIMULACAO_PROVIDERS_COMPLETA.md](guides/IMPLEMENTACAO_SIMULACAO_PROVIDERS_COMPLETA.md)** - Implementação completa de simulação de providers
 - **[IMPLEMENTATION_ADJUSTMENTS.md](guides/IMPLEMENTATION_ADJUSTMENTS.md)** - Ajustes de implementação
 - **[IMPLEMENTATION_COMPLETE.md](guides/IMPLEMENTATION_COMPLETE.md)** - Implementação completa
 - **[IMPROVEMENTS_SUMMARY.md](guides/IMPROVEMENTS_SUMMARY.md)** - Resumo de melhorias
+- **[INTEGRACAO_CACHE_DADOS.md](guides/INTEGRACAO_CACHE_DADOS.md)** - Integração com cache de dados
 - **[JOURNEYS_MAPPING.md](guides/JOURNEYS_MAPPING.md)** - Mapeamento de jornadas
+- **[OTIMIZACAO_PERFORMANCE.md](guides/OTIMIZACAO_PERFORMANCE.md)** - Otimização de performance
+- **[OTIMIZACOES_ADICIONAIS.md](guides/OTIMIZACOES_ADICIONAIS.md)** - Otimizações adicionais
+- **[OTIMIZACOES_CENARIOS_IMPLEMENTADAS.md](guides/OTIMIZACOES_CENARIOS_IMPLEMENTADAS.md)** - Otimizações de cenários implementadas
+- **[PROBLEMA_SESSIONTOKEN.md](guides/PROBLEMA_SESSIONTOKEN.md)** - Problema com SessionToken
 - **[QUICK_REFERENCE.md](guides/QUICK_REFERENCE.md)** - Referência rápida
+- **[README_IMPLEMENTACAO_BLOQUEIO_IP.md](guides/README_IMPLEMENTACAO_BLOQUEIO_IP.md)** - Implementação de bloqueio de IP
 - **[RESUMO_EXECUTIVO_NORMALIZACAO_SIMULACAO.md](guides/RESUMO_EXECUTIVO_NORMALIZACAO_SIMULACAO.md)** - Resumo executivo de normalização de simulação
 - **[SEGMENTO1_COBERTURA.md](guides/SEGMENTO1_COBERTURA.md)** - Cobertura do Segmento 1
+- **[TAGS_REFERENCE_GUIDE.md](guides/TAGS_REFERENCE_GUIDE.md)** - Guia de referência de tags
 - **[TEST_EXECUTION_PROGRESS.md](guides/TEST_EXECUTION_PROGRESS.md)** - Progresso de execução de testes
 - **[TEST_TAGS_GUIDE.md](guides/TEST_TAGS_GUIDE.md)** - Guia de tags de teste
 - **[TROUBLESHOOTING.md](guides/TROUBLESHOOTING.md)** - Guia de troubleshooting
 - **[UAT_EXECUTION_GUIDE.md](guides/UAT_EXECUTION_GUIDE.md)** - Guia de execução UAT
+
+## 🎓 Lições Aprendidas
+
+Documentos de lições aprendidas organizados em `lessons-learned/`:
+
+- **[LICOES_APRENDIDAS_E2E.md](lessons-learned/LICOES_APRENDIDAS_E2E.md)** - Lições aprendidas em testes E2E
 
 ---
 
@@ -91,54 +123,12 @@ platform-journey-tests/
 ├── CONTRIBUTING.md              # ✅ Aceitável (guia de contribuição)
 ├── docs/
 │   ├── INDEX.md                 # ✅ Este arquivo - Índice completo
-│   ├── analysis/                # Análises e diagnósticos
-│   │   ├── ANALISE_CONFORMIDADE.md
-│   │   ├── DIAGNOSTICO_MICROSERVICES.md
-│   │   └── TEST_COVERAGE_ANALYSIS.md
-│   ├── verification/            # Verificações e validações
-│   │   ├── CORRECAO_VERSIONAMENTO_COMPLETA.md
-│   │   ├── CORRECAO_VERSIONAMENTO_ENDPOINTS.md
-│   │   ├── CORRECOES_APLICADAS.md
-│   │   ├── ERRORS_FIXED.md
-│   │   ├── EXECUTION_STATUS.md
-│   │   ├── FINAL_STATUS.md
-│   │   ├── FINAL_STATUS_REPORT.md
-│   │   ├── FIXES_APPLIED.md
-│   │   ├── IMPLEMENTATION_STATUS.md
-│   │   ├── RESULTADOS_EXECUCAO.md
-│   │   ├── TEST_EXECUTION_RESULTS.md
-│   │   ├── TEST_EXECUTION_SUMMARY.md
-│   │   ├── TEST_VALIDATION_SUMMARY.md
-│   │   └── VALIDATION_COMPLETE.md
-│   ├── plans/                   # Planos de implementação
-│   │   ├── NEXT_STEPS.md
-│   │   ├── OTP_IMPLEMENTATION_PLAN.md
-│   │   ├── PLANO_ACAO_SEGMENTO1.md
-│   │   ├── PLANO_CONCLUSAO_SEGMENTO1.md
-│   │   ├── PLANO_CORRECAO_PROBLEMAS.md
-│   │   ├── PLANO_IMPLEMENTACAO_FEATURES.md
-│   │   ├── PLANO_IMPLEMENTACAO_RESUMO.md
-│   │   └── PLANO_NORMALIZACAO_SIMULACAO_PROVIDERS.md
-│   └── guides/                  # Guias e explicações
-│       ├── ALLURE_REPORT.md
-│       ├── CENARIOS_TESTE_SIMULACAO_PROVIDERS.md
-│       ├── COBERTURA_COMPLETA_SEGMENTOS.md
-│       ├── CONFIGURATION_SUMMARY.md
-│       ├── DEPENDENCIES_EXTERNAS.md
-│       ├── FEATURES_SUMMARY.md
-│       ├── IMPLEMENTACAO_SIMULACAO_PROVIDERS_COMPLETA.md
-│       ├── IMPLEMENTATION_ADJUSTMENTS.md
-│       ├── IMPLEMENTATION_COMPLETE.md
-│       ├── IMPROVEMENTS_SUMMARY.md
-│       ├── JOURNEYS_MAPPING.md
-│       ├── QUICK_REFERENCE.md
-│       ├── RESUMO_EXECUTIVO_NORMALIZACAO_SIMULACAO.md
-│       ├── SEGMENTO1_COBERTURA.md
-│       ├── TEST_EXECUTION_PROGRESS.md
-│       ├── TEST_TAGS_GUIDE.md
-│       ├── TROUBLESHOOTING.md
-│       ├── UAT_EXECUTION_GUIDE.md
-│       └── COMPLETE_REGISTRATION_FLOW_TESTS.md
+│   ├── analysis/                # Análises e diagnósticos (16 documentos)
+│   ├── verification/            # Verificações e validações (16 documentos)
+│   ├── plans/                   # Planos de implementação (10 documentos)
+│   ├── guides/                  # Guias e explicações (28 documentos)
+│   ├── lessons-learned/         # Lições aprendidas (1 documento)
+│   └── validation/              # Validações (2 documentos)
 └── src/                         # Código-fonte
 ```
 
@@ -189,7 +179,7 @@ Este índice é atualizado sempre que:
 - Documentos são movidos ou reorganizados
 - Estrutura de documentação muda
 
-**Última reorganização:** 2025-01-27 - Conformidade com Nota Técnica 011
+**Última reorganização:** 2025-12-27 - Reorganização completa: documentos operacionais removidos, documentos permanentes organizados em analysis/, guides/, plans/ e lessons-learned/
 
 ---
 

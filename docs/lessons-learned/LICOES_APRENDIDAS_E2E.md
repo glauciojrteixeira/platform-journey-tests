@@ -1,428 +1,441 @@
-# Lições Aprendidas - Testes E2E (platform-journey-tests)
+# Lições Aprendidas - Testes E2E e Arquitetura Multi-Country
 
-## 📅 Período
-Dezembro 2024 - Sessão de debugging e correção de testes E2E
-
----
-
-## 🎯 Resumo Executivo
-
-Esta sessão focou na resolução de problemas críticos em testes E2E do projeto `platform-journey-tests`, envolvendo múltiplos microserviços (Identity Service, Auth Service, User Profile Service) e integrações com RabbitMQ, PostgreSQL e MongoDB.
-
-**Resultado Final**: Redução de erros de 6+ para 0 erros críticos, com apenas 1 teste manual removido (por design).
+**Data**: 2025-12-22  
+**Contexto**: Correção de falhas em testes E2E relacionados à arquitetura multi-country e validação de dados
 
 ---
 
-## 🔑 Principais Aprendizados
+## 📋 Resumo Executivo
 
-### 1. **Arquitetura Hexagonal e Separação de Responsabilidades**
+Durante a correção de falhas nos testes E2E, identificamos e resolvemos problemas relacionados a:
+1. Processamento de placeholders em feature files do Cucumber
+2. Geração de documentos únicos em retries
+3. Gerenciamento de `sessionToken` em fluxos de retry
+4. Validação e normalização de `documentType`
+5. Integração com RabbitMQ em arquitetura multi-country
+
+**Resultado**: 202 testes executados, 0 falhas, 0 erros ✅
+
+---
+
+## 🎓 Conhecimentos Adquiridos
+
+### 1. Processamento de Placeholders no Cucumber
 
 #### Problema Identificado
-- Domain layer (`CredentialManagementService`) estava tentando usar classes da infrastructure layer diretamente
-- Violação da arquitetura hexagonal ao importar `CredentialRepositoryImpl` e `CredentialEntity` no domain
+- Feature files podem conter placeholders com aspas duplas: `"{unique_cpf}"` em vez de `{unique_cpf}`
+- O Cucumber não remove aspas automaticamente
+- Placeholders não processados causam falhas de validação no backend
 
-#### Solução Aplicada
-- Uso de nomes totalmente qualificados (`com.projeto2026.auth_service.infrastructure.repositories.CredentialRepositoryImpl`)
-- Manutenção da separação de camadas mesmo quando necessário acessar infraestrutura
-- Validação de conformidade com `HEXAGONAL_ARCHITECTURE_GUIDE.md`
-
-#### Lição Aprendida
-> **"Sempre validar conformidade arquitetural antes de implementar correções rápidas. A arquitetura hexagonal não é apenas uma sugestão - é uma necessidade para manutenibilidade."**
-
----
-
-### 2. **Concorrência e Locking Strategies**
-
-#### Problema Identificado
-- `ObjectOptimisticLockingFailureException` recorrente em operações críticas
-- Falhas em `UserEntity` (Identity Service) e `CredentialEntity` (Auth Service)
-- Race conditions durante atualizações simultâneas
-
-#### Solução Aplicada
-- Implementação de **pessimistic locking** (`LockModeType.PESSIMISTIC_WRITE`) para operações críticas
-- Uso de `@Transactional` para garantir atomicidade
-- Padrão consistente: `findByUuidWithLock()` + `updateOnEntity()` para atualizações
-
-#### Lição Aprendida
-> **"Optimistic locking funciona bem para leitura, mas operações críticas (password reset, credential updates) requerem pessimistic locking para evitar race conditions."**
-
-**Padrão Aplicado:**
+#### Solução Implementada
 ```java
-@Transactional
-public Credential resetPassword(UUID userUuid, String newPassword) {
-    // 1. Buscar com lock pessimista
-    CredentialEntity entity = credentialRepoImpl
-        .findByUuidWithLock(credential.getUuid())
-        .orElseThrow(...);
-    
-    // 2. Atualizar diretamente na entidade gerenciada
-    return credentialRepoImpl.updatePasswordOnEntity(entity, newPasswordHash, false);
+// Remover aspas duplas antes de processar placeholders
+String trimmedValue = value.trim();
+if (trimmedValue.startsWith("\"") && trimmedValue.endsWith("\"")) {
+    trimmedValue = trimmedValue.substring(1, trimmedValue.length() - 1).trim();
+}
+if (trimmedValue.startsWith("{") && trimmedValue.endsWith("}")) {
+    // Processar placeholder
 }
 ```
 
----
-
-### 3. **Rate Limiting: Global vs Per-Email**
-
-#### Problema Identificado
-- Rate limiting para OTP de `REGISTRATION` era global (todos os emails compartilhavam o mesmo limite)
-- Limite muito alto para testes E2E (100 requests/hora)
-- Não havia email armazenado no OTP para permitir rate limiting por email
-
-#### Solução Aplicada
-- Implementação de rate limiting **per-email** usando `otp_registration_data`
-- Configuração de limites adequados para testes (5 requests por 10 minutos por email)
-- Uso de janela deslizante de 10 minutos em vez de 1 hora
-
 #### Lição Aprendida
-> **"Rate limiting global pode ser muito restritivo ou muito permissivo. Rate limiting per-email oferece melhor granularidade e segurança, especialmente para operações de registro."**
-
-**Estrutura de Dados:**
-- `otp` (tabela principal) - não armazena email diretamente
-- `otp_registration_data` (tabela relacionada) - armazena email e permite rate limiting por email
+- **Sempre normalizar valores antes de processar placeholders**
+- **Feature files podem ter formatação inconsistente** - o código deve ser resiliente
+- **Processar placeholders múltiplas vezes** para garantir substituição completa
 
 ---
 
-### 4. **MongoDB e Versionamento de Documentos**
+### 2. Geração de Documentos Únicos em Retries
 
 #### Problema Identificado
-- `Could not obtain identifier` ao criar novos documentos `ProfileDocument`
-- `@Version` tentando fazer versionamento em documentos novos (sem `_id`)
-- Tentativa de `save()` em documentos novos causando conflitos
+- Código de retry sempre gerava CPF, independente do `documentType`
+- Testes para RUT, CUIT, DNI, CI, SSN falhavam no retry
+- Backend rejeitava documentos inválidos (ex: CPF quando esperava RUT)
 
-#### Solução Aplicada
-- Verificação se documento existe antes de decidir entre `insert` e `save`
-- Uso de `mongoTemplate.insert()` para novos documentos (sem `_id`)
-- Uso de `mongoRepository.save()` para documentos existentes (com `_id`)
-
-#### Lição Aprendida
-> **"MongoDB com Spring Data requer tratamento especial para novos documentos. Sempre verificar se o documento existe antes de decidir a estratégia de persistência."**
-
-**Padrão Aplicado:**
+#### Solução Implementada
 ```java
-ProfileDocument existingDocument = mongoRepository.findByUuid(document.getUuid()).orElse(null);
+// Usar switch baseado no documentType para gerar documento correto
+String documentNumber;
+switch (documentType.toUpperCase()) {
+    case "RUT":
+        documentNumber = TestDataGenerator.generateUniqueRut();
+        break;
+    case "CUIT":
+        documentNumber = TestDataGenerator.generateUniqueCuit();
+        break;
+    // ... outros tipos
+    default:
+        documentNumber = TestDataGenerator.generateUniqueCpf();
+        break;
+}
+```
 
-if (existingDocument == null && document.getId() == null) {
-    // Novo documento - usar insert
-    saved = mongoTemplate.insert(document);
+#### Lição Aprendida
+- **Nunca assumir tipo de documento padrão em retries**
+- **Sempre preservar o contexto original** (documentType, país, etc.)
+- **Geradores de dados devem respeitar o contexto do teste**
+
+---
+
+### 3. Gerenciamento de SessionToken em Retries
+
+#### Problema Identificado
+- `sessionToken` é de uso único e é limpo após primeira tentativa
+- Retry não executava porque verificava `useSessionToken` que era `false`
+- Retry precisa criar novo OTP e `sessionToken`, não reutilizar o antigo
+
+#### Solução Implementada
+```java
+// Retry sempre executa quando há 409, independente de sessionToken
+if (lastResponse != null && lastResponse.getStatusCode() == 409) {
+    // Limpar sessionToken antigo
+    userFixture.setSessionToken(null);
+    // Criar novo OTP e sessionToken
+    // ... criar novo usuário com novos dados
+}
+```
+
+#### Lição Aprendida
+- **SessionToken é de uso único** - nunca reutilizar
+- **Retries devem sempre criar novo OTP/sessionToken**
+- **Não depender de estado anterior em retries** - sempre recriar o necessário
+- **Limpar sessionToken apenas após sucesso** (201/200), não após erros
+
+---
+
+### 4. Validação e Normalização de documentType
+
+#### Problema Identificado
+- Feature files podem ter `documentType` com aspas: `"CPF"`
+- Backend espera valores uppercase: `CPF`, `CNPJ`, `RUT`, etc.
+- Testes de validação precisam que `documentType` seja `null` quando ausente
+
+#### Solução Implementada
+```java
+// 1. Remover aspas duplas
+if (documentType.startsWith("\"") && documentType.endsWith("\"")) {
+    documentType = documentType.substring(1, documentType.length() - 1).trim();
+}
+
+// 2. Normalizar para uppercase
+documentType = documentType.toUpperCase().trim();
+
+// 3. Não incluir no request quando null (para testes de validação)
+if (documentType != null && !documentType.trim().isEmpty()) {
+    request.put("documentType", documentType);
 } else {
-    // Documento existe - atualizar campos e usar save
-    if (existingDocument != null) {
-        existingDocument.setLanguage(document.getLanguage());
-        // ... atualizar outros campos
-        document = existingDocument;
-    }
-    saved = mongoRepository.save(document);
+    // Não adicionar - permite que backend valide
+}
+```
+
+#### Lição Aprendida
+- **Sempre normalizar dados antes de enviar ao backend**
+- **Backend é a fonte de verdade para validações** - não validar no código de teste
+- **Campos null devem ser omitidos** para testes de validação funcionarem
+- **Aspas duplas podem aparecer em feature files** - sempre tratar
+
+---
+
+### 5. Arquitetura Multi-Country e RabbitMQ
+
+#### Problema Identificado
+- Eventos de VS-CustomerCommunications são publicados no vhost `/shared`
+- Testes E2E estavam configurados apenas para vhost `/br`
+- Timeouts ao consumir eventos do `/shared`
+
+#### Solução Implementada
+- `RabbitMQHelper` configurado para múltiplos vhosts (`/br` e `/shared`)
+- `AuthService` faz dual-publishing de eventos específicos
+- Helm charts e Docker Compose atualizados com vhosts corretos
+
+#### Lição Aprendida
+- **Ambiente de desenvolvimento deve espelhar produção**
+- **Virtual hosts do RabbitMQ são críticos para isolamento**
+- **Testes E2E devem suportar múltiplos vhosts**
+- **Documentar estratégia de vhosts por vertical de serviço**
+
+---
+
+## 🔧 Padrões e Boas Práticas Identificadas
+
+### 1. Processamento de Dados de Teste
+
+#### ✅ Fazer
+- Normalizar valores antes de processar (trim, uppercase, remover aspas)
+- Processar placeholders múltiplas vezes até não haver mais placeholders
+- Validar formato antes de usar (ex: email deve conter "@")
+- Preservar contexto original em retries (documentType, país, etc.)
+
+#### ❌ Evitar
+- Assumir formato de dados sem normalização
+- Processar placeholders apenas uma vez
+- Validar dados no código de teste (deixar backend validar)
+- Assumir tipo padrão em retries
+
+---
+
+### 2. Gerenciamento de Tokens e Sessões
+
+#### ✅ Fazer
+- Criar novo OTP/sessionToken em cada retry
+- Limpar sessionToken apenas após sucesso (201/200)
+- Verificar se sessionToken está presente antes de usar
+- Logar sessionToken (parcialmente) para debug
+
+#### ❌ Evitar
+- Reutilizar sessionToken (é de uso único)
+- Limpar sessionToken antes de verificar se retry é necessário
+- Assumir que sessionToken está disponível
+- Logar sessionToken completo (segurança)
+
+---
+
+### 3. Retries e Tratamento de Erros
+
+#### ✅ Fazer
+- Executar retry baseado em status HTTP, não em estado interno
+- Gerar novos dados únicos respeitando o contexto original
+- Criar novo OTP/sessionToken em cada retry
+- Limitar número de retries (ex: 5 tentativas)
+
+#### ❌ Evitar
+- Depender de estado interno para decidir retry
+- Gerar dados sem considerar contexto (documentType, país)
+- Reutilizar tokens em retries
+- Retries infinitos
+
+---
+
+### 4. Integração com Backend
+
+#### ✅ Fazer
+- Backend é a fonte de verdade para validações
+- Enviar dados normalizados (uppercase, sem aspas)
+- Omitir campos null para testes de validação
+- Logar request body antes de enviar (para debug)
+
+#### ❌ Evitar
+- Validar dados no código de teste
+- Enviar dados não normalizados
+- Incluir campos null quando não necessário
+- Assumir formato de resposta do backend
+
+---
+
+## 🚨 Anti-Padrões Identificados
+
+### 1. Hardcoding de Tipos de Documento
+```java
+// ❌ ERRADO
+userData.put("documentNumber", TestDataGenerator.generateUniqueCpf());
+
+// ✅ CORRETO
+String documentNumber = generateDocumentByType(documentType);
+userData.put("documentNumber", documentNumber);
+```
+
+### 2. Validação no Código de Teste
+```java
+// ❌ ERRADO
+if (email == null || !email.contains("@")) {
+    throw new IllegalArgumentException("Email inválido");
+}
+
+// ✅ CORRETO
+// Enviar ao backend e deixar ele validar
+// Backend retornará erro apropriado
+```
+
+### 3. Reutilização de Tokens
+```java
+// ❌ ERRADO
+if (sessionToken != null) {
+    // Reutilizar sessionToken
+}
+
+// ✅ CORRETO
+// SessionToken é de uso único - sempre criar novo em retries
+userFixture.setSessionToken(null);
+// Criar novo OTP e sessionToken
+```
+
+### 4. Processamento de Placeholders Incompleto
+```java
+// ❌ ERRADO
+if (value.startsWith("{") && value.endsWith("}")) {
+    // Processar
+}
+
+// ✅ CORRETO
+// Remover aspas primeiro
+String trimmed = value.trim();
+if (trimmed.startsWith("\"") && trimmed.endsWith("\"")) {
+    trimmed = trimmed.substring(1, trimmed.length() - 1).trim();
+}
+if (trimmed.startsWith("{") && trimmed.endsWith("}")) {
+    // Processar
 }
 ```
 
 ---
 
-### 5. **Validação de Eventos RabbitMQ em Testes E2E**
+## 📚 Conhecimentos Técnicos Adquiridos
 
-#### Problema Identificado
-- Mensagens sendo consumidas muito rapidamente pelos consumidores ativos
-- Testes não conseguiam validar headers `simulate-provider` em mensagens `otp.sent`
-- Timeout de 5 segundos insuficiente
+### 1. Cucumber e Gherkin
+- **Placeholders**: Podem vir com aspas do feature file
+- **DataTable**: Valores podem ter formatação inconsistente
+- **Scenario Outline**: Substitui placeholders antes de passar para step definitions
+- **Processamento**: Deve ser feito múltiplas vezes para garantir substituição completa
 
-#### Solução Aplicada
-- Estratégia multi-camadas:
-  1. Verificar cache de última mensagem consumida
-  2. Aguardar 2 segundos antes de começar a consumir
-  3. Tentar consumir diretamente (5 tentativas)
-  4. Polling com timeout aumentado (10 segundos)
-  5. Consumo adicional (10 tentativas)
-- Aceitar pelo menos 1 mensagem como sucesso (em vez de exigir 3)
-- Logs detalhados com prefixo `🔍 [TROUBLESHOOTING]`
+### 2. Spring AMQP e RabbitMQ
+- **Virtual Hosts**: Críticos para isolamento em arquitetura multi-country
+- **Dual Publishing**: Serviços podem publicar em múltiplos vhosts
+- **ConnectionFactory**: Deve ser explícito com `@Primary` e `@Qualifier`
+- **Testes E2E**: Devem suportar múltiplos vhosts
 
-#### Lição Aprendida
-> **"Em ambientes com consumidores ativos, mensagens RabbitMQ podem ser consumidas instantaneamente. Testes E2E devem usar estratégias múltiplas e ser tolerantes a falhas parciais."**
+### 3. Gerenciamento de Estado em Testes
+- **SessionToken**: De uso único, não pode ser reutilizado
+- **Retries**: Devem recriar todo o estado necessário
+- **Contexto**: Deve ser preservado (documentType, país, etc.)
+- **Limpeza**: Apenas após sucesso, não após erros
 
-**Estratégia de Consumo:**
-```java
-// 1. Cache
-RabbitMQHelper.Event lastEvent = rabbitMQHelper.getLastConsumedMessage(eventType);
-
-// 2. Aguardo inicial
-Thread.sleep(2000);
-
-// 3. Consumo direto
-for (int i = 0; i < 5; i++) {
-    Event event = rabbitMQHelper.consumeMessage(eventType);
-    // ... validar
-}
-
-// 4. Polling com Awaitility
-await().atMost(10, SECONDS).pollInterval(200, MILLISECONDS)
-    .until(() -> {
-        Event event = rabbitMQHelper.consumeMessage(eventType);
-        // ... validar
-        return messagesChecked >= minMessages;
-    });
-```
+### 4. Validação de Dados
+- **Backend é fonte de verdade**: Não validar no código de teste
+- **Normalização**: Sempre normalizar antes de enviar
+- **Campos null**: Omitir para testes de validação funcionarem
+- **Formato**: Backend pode ser mais restritivo que esperado
 
 ---
 
-### 6. **Chain of Responsibility para Validações**
+## 🎯 Recomendações para o Futuro
 
-#### Problema Identificado
-- Validação de email adicionada diretamente em `OtpManagementUseCase`
-- Violação do padrão Chain of Responsibility já existente no projeto
+### 1. Documentação
+- ✅ Documentar estratégia de vhosts por vertical de serviço
+- ✅ Documentar padrões de geração de dados únicos
+- ✅ Documentar fluxo de OTP/sessionToken em testes
+- ✅ Documentar tratamento de placeholders
 
-#### Solução Aplicada
-- Criação de `OtpRequestValidator` seguindo o padrão Chain of Responsibility
-- Integração no `OtpAdapter` para manter consistência arquitetural
+### 2. Código
+- ✅ Criar utilitários para normalização de dados
+- ✅ Criar utilitários para geração de documentos por tipo
+- ✅ Adicionar logging detalhado em pontos críticos
+- ✅ Validar formato de dados antes de processar
 
-#### Lição Aprendida
-> **"Sempre verificar padrões arquiteturais existentes antes de adicionar novas funcionalidades. Padrões como Chain of Responsibility devem ser respeitados para manter consistência."**
+### 3. Testes
+- ✅ Testes unitários para processamento de placeholders
+- ✅ Testes unitários para geração de documentos
+- ✅ Testes de integração para fluxo de OTP/sessionToken
+- ✅ Validação de formatação de feature files
 
----
-
-### 7. **Logging Estratégico para Troubleshooting**
-
-#### Problema Identificado
-- Problemas recorrentes difíceis de diagnosticar
-- Falta de visibilidade em pontos críticos do fluxo
-- Logs em nível `DEBUG` não visíveis em produção
-
-#### Solução Aplicada
-- Elevação de logs críticos para `INFO`
-- Logs detalhados em pontos de decisão
-- Prefixo `🔍 [TROUBLESHOOTING]` para facilitar filtragem
-- Logs incluem contexto completo (UUIDs, status codes, valores)
-
-#### Lição Aprendida
-> **"Logs estratégicos são essenciais para troubleshooting em ambientes distribuídos. Use níveis apropriados (INFO para crítico, DEBUG para detalhes) e prefixos para facilitar filtragem."**
-
-**Exemplo de Logging Estratégico:**
-```java
-LOGGER.info("[Auth] [CREDENTIAL-MGMT] Starting password reset for user: {}", userUuid);
-LOGGER.debug("[Auth] [CREDENTIAL-MGMT] Acquiring pessimistic lock for credential: {}", credential.getUuid());
-LOGGER.info("[Auth] [CREDENTIAL-MGMT] ✅ Password reset completed successfully for user: {}", userUuid);
-```
-
----
-
-### 8. **Tratamento de Testes Manuais**
-
-#### Problema Identificado
-- Testes que requerem intervenção manual falhando automaticamente
-- `IllegalStateException` causando build failure
-- Testes manuais executando em pipelines automatizados
-
-#### Solução Aplicada
-- Uso de `AssumptionViolatedException` para marcar testes como "skipped"
-- Configuração do Cucumber para excluir testes `@manual` por padrão
-- Remoção de testes manuais do conjunto de testes automatizados
-
-#### Lição Aprendida
-> **"Testes que requerem intervenção manual não devem fazer parte de pipelines automatizados. Use tags apropriadas (@manual) e configure o Cucumber para excluí-los por padrão."**
-
-**Configuração:**
-```properties
-# cucumber.properties
-cucumber.filter.tags=@e2e and not @not_implemented and not @manual
-```
-
----
-
-### 9. **Validação de Dados e Geração de CPF**
-
-#### Problema Identificado
-- CPFs inválidos sendo usados em testes
-- Testes falhando por CPF com dígitos verificadores incorretos
-- Dados de teste não sendo validados antes do uso
-
-#### Solução Aplicada
-- Criação de `TestDataGenerator.isValidCpf()` para validar CPF
-- Geração automática de CPFs válidos quando inválidos são fornecidos
-- Validação antes de usar CPF em testes
-
-#### Lição Aprendida
-> **"Sempre validar dados de teste antes de usar. Geração automática de dados válidos reduz falhas intermitentes em testes."**
-
----
-
-### 10. **Idempotência e Duplicate Detection**
-
-#### Problema Identificado
-- `existsByCpf` e `existsByEmail` não detectando duplicados confiavelmente
-- Usuários sendo criados mesmo com CPF/email duplicado
-- Queries JPA não capturando todos os casos
-
-#### Solução Aplicada
-- Implementação de fallback com queries nativas SQL
-- Verificação em múltiplas camadas (JPA + SQL nativo)
-- Logs detalhados para diagnóstico
-
-#### Lição Aprendida
-> **"Queries JPA podem não capturar todos os casos (especialmente com soft deletes). Use queries nativas SQL como fallback para validações críticas de unicidade."**
-
----
-
-## 🛠️ Padrões e Boas Práticas Estabelecidas
-
-### 1. **Padrão de Locking para Operações Críticas**
-```java
-@Transactional
-public Entity updateCriticalOperation(UUID id, Data data) {
-    // 1. Buscar com lock pessimista
-    Entity entity = repository.findByUuidWithLock(id)
-        .orElseThrow(...);
-    
-    // 2. Atualizar diretamente na entidade gerenciada
-    return repository.updateOnEntity(entity, data);
-}
-```
-
-### 2. **Padrão de Validação com Chain of Responsibility**
-```java
-public class ValidatorChain {
-    private final ValidationChain<DTO> chain;
-    
-    public ValidationChain() {
-        this.chain = new ValidationChain<DTO>()
-            .add(new FirstValidator())
-            .add(new SecondValidator())
-            .add(new ThirdValidator());
-    }
-    
-    public ValidationResult validate(DTO dto) {
-        return chain.validate(dto);
-    }
-}
-```
-
-### 3. **Padrão de Consumo de Mensagens RabbitMQ**
-```java
-// 1. Cache
-Event lastEvent = helper.getLastConsumedMessage(eventType);
-
-// 2. Aguardo inicial
-Thread.sleep(2000);
-
-// 3. Consumo direto + Polling + Consumo adicional
-// (ver exemplo completo na seção 5)
-```
-
-### 4. **Padrão de Logging Estratégico**
-```java
-LOGGER.info("[SERVICE] [COMPONENT] Starting operation: param={}", param);
-LOGGER.debug("[SERVICE] [COMPONENT] Intermediate step: value={}", value);
-LOGGER.info("[SERVICE] [COMPONENT] ✅ Operation completed: result={}", result);
-LOGGER.error("[SERVICE] [COMPONENT] ❌ Operation failed: error={}", error);
-```
+### 4. Processo
+- ✅ Code review focado em normalização de dados
+- ✅ Validação de feature files antes de commit
+- ✅ Documentar padrões em playbooks
+- ✅ Compartilhar lições aprendidas com time
 
 ---
 
 ## 📊 Métricas de Sucesso
 
-### Antes
-- **Erros**: 6+ erros críticos
-- **Failures**: 4+ falhas recorrentes
-- **Taxa de Sucesso**: ~94% (94/128 testes passando)
+### Antes das Correções
+- **Testes executados**: 202
+- **Falhas**: 60
+- **Erros**: 3
+- **Taxa de sucesso**: ~70%
 
-### Depois
-- **Erros**: 0 erros críticos
-- **Failures**: 0 falhas (apenas 1 teste manual removido por design)
-- **Taxa de Sucesso**: 100% dos testes automatizados
+### Depois das Correções
+- **Testes executados**: 202
+- **Falhas**: 0
+- **Erros**: 0
+- **Taxa de sucesso**: 100% ✅
 
----
-
-## 🎓 Lições Críticas
-
-### 1. **Sempre Validar Arquitetura Antes de Implementar**
-> Antes de adicionar código, verifique se está seguindo os padrões arquiteturais estabelecidos (hexagonal, Chain of Responsibility, etc.)
-
-### 2. **Concorrência Requer Estratégias Específicas**
-> Operações críticas (password reset, credential updates) requerem pessimistic locking, não apenas optimistic locking
-
-### 3. **Rate Limiting Deve Ser Granular**
-> Rate limiting global pode ser muito restritivo ou muito permissivo. Prefira rate limiting por entidade (email, IP, etc.)
-
-### 4. **MongoDB Requer Tratamento Especial**
-> Novos documentos devem usar `insert()`, documentos existentes devem usar `save()`. Sempre verificar existência antes.
-
-### 5. **Testes E2E Devem Ser Tolerantes a Falhas Parciais**
-> Em ambientes com consumidores ativos, mensagens podem ser consumidas rapidamente. Testes devem aceitar resultados parciais quando apropriado.
-
-### 6. **Logging Estratégico é Essencial**
-> Use níveis apropriados (INFO para crítico) e prefixos para facilitar troubleshooting em ambientes distribuídos.
-
-### 7. **Testes Manuais Não Pertencem a Pipelines Automatizados**
-> Use tags apropriadas e configure o Cucumber para excluir testes manuais por padrão.
-
-### 8. **Validação de Dados de Teste é Crítica**
-> Sempre valide dados de teste antes de usar. Geração automática de dados válidos reduz falhas intermitentes.
-
-### 9. **Queries Nativas SQL Como Fallback**
-> Para validações críticas de unicidade, use queries nativas SQL como fallback quando queries JPA não capturam todos os casos.
-
-### 10. **Documentação e Rastreabilidade**
-> Mantenha logs detalhados e documentação clara para facilitar troubleshooting futuro.
+### Problemas Resolvidos
+1. ✅ 7 falhas de placeholders não processados
+2. ✅ 1 falha de `registration-token` header ausente
+3. ✅ 1 falha de retry com documento incorreto
+4. ✅ 1 erro de email inválido em teste de validação
+5. ✅ 50+ falhas relacionadas a sessionToken inválido/expirado
 
 ---
 
-## 🔄 Processo de Troubleshooting Estabelecido
+## 🔍 Debugging e Troubleshooting
 
-### 1. **Identificação do Problema**
-- Analisar logs de erro
-- Verificar stack traces completos
-- Identificar padrões recorrentes
+### Técnicas Utilizadas
+1. **Logging detalhado**: Adicionado em pontos críticos do fluxo
+2. **Validação incremental**: Testar cada etapa separadamente
+3. **Isolamento de problemas**: Identificar causa raiz antes de corrigir
+4. **Testes unitários**: Criar testes específicos para validar comportamento
 
-### 2. **Investigação**
-- Adicionar logs estratégicos nos pontos críticos
-- Verificar comportamento em diferentes ambientes
-- Analisar logs de múltiplos serviços
-
-### 3. **Correção**
-- Validar conformidade arquitetural
-- Aplicar padrões estabelecidos
-- Testar em ambiente isolado primeiro
-
-### 4. **Validação**
-- Re-executar testes E2E completos
-- Verificar logs para confirmar correção
-- Validar que não introduziu regressões
+### Ferramentas Utilizadas
+- **Logs do Maven**: Análise de falhas e stack traces
+- **Allure Reports**: Anexar dados de debug
+- **Logging estruturado**: Usar emojis e prefixos para facilitar busca
+- **Testes unitários**: Validar serialização e processamento
 
 ---
 
-## 📝 Recomendações Futuras
+## 💡 Insights Importantes
 
-### 1. **Monitoramento e Alertas**
-- Implementar alertas para `ObjectOptimisticLockingFailureException`
-- Monitorar taxa de falhas em operações críticas
-- Alertas para rate limiting sendo atingido
+### 1. Ambiente de Desenvolvimento vs Produção
+- **Crítico**: Ambiente de desenvolvimento deve espelhar produção
+- **Virtual hosts**: Devem ser configurados corretamente desde o início
+- **Configuração**: Docker Compose e Helm charts devem estar alinhados
 
-### 2. **Testes de Carga**
-- Testes de carga para validar locking strategies
-- Testes de concorrência para operações críticas
-- Validação de rate limiting sob carga
+### 2. Testes E2E são Complexos
+- **Múltiplas camadas**: Feature files → Step definitions → Clients → Backend
+- **Estado compartilhado**: Precisa ser gerenciado cuidadosamente
+- **Retries**: Devem recriar todo o estado necessário
 
-### 3. **Documentação**
-- Documentar padrões de locking estabelecidos
-- Documentar estratégias de consumo RabbitMQ
-- Guia de troubleshooting para problemas comuns
+### 3. Normalização é Fundamental
+- **Dados inconsistentes**: Podem causar falhas silenciosas
+- **Feature files**: Podem ter formatação inconsistente
+- **Backend**: Pode ser mais restritivo que esperado
 
-### 4. **Automação**
-- Automação de validação de conformidade arquitetural
-- Testes automatizados para padrões estabelecidos
-- Validação automática de dados de teste
-
----
-
-## 🎯 Conclusão
-
-Esta sessão demonstrou a importância de:
-- **Arquitetura consistente**: Seguir padrões estabelecidos evita problemas futuros
-- **Estratégias apropriadas**: Cada problema requer uma solução específica (locking, rate limiting, etc.)
-- **Logging estratégico**: Logs bem posicionados facilitam troubleshooting
-- **Tolerância a falhas**: Testes E2E devem ser robustos e tolerantes a condições de corrida
-- **Validação contínua**: Sempre validar dados e conformidade antes de implementar
-
-Os padrões e práticas estabelecidos nesta sessão devem ser seguidos em futuras implementações para manter a qualidade e manutenibilidade do código.
+### 4. Tokens e Sessões
+- **Uso único**: SessionToken não pode ser reutilizado
+- **Retries**: Devem sempre criar novos tokens
+- **Limpeza**: Apenas após sucesso, não após erros
 
 ---
 
-**Última Atualização**: Dezembro 2024  
-**Autor**: Resumo baseado em sessão de debugging e correção de testes E2E
+## 📖 Referências e Documentação
+
+### Arquivos Criados/Atualizados
+1. `ANALISE_LOGS_MULTI_COUNTRY.md` - Análise inicial dos problemas
+2. `RESULTADO_IMPLEMENTACAO_MULTI_VHOST.md` - Resolução de problemas RabbitMQ
+3. `CORRECOES_VALIDACAO_DADOS.md` - Correções de validação
+4. `CORRECOES_FINAIS_DOCUMENTTYPE.md` - Correções finais de documentType
+5. `PROBLEMA_SESSIONTOKEN.md` - Análise de problemas de sessionToken
+6. `DESCOBERTA_SERIALIZACAO.md` - Descobertas sobre serialização JSON
+7. `RESUMO_INVESTIGACAO.md` - Resumo da investigação
+8. `SOLUCAO_FINAL_DOCUMENTTYPE.md` - Solução final
+
+### Playbooks Atualizados
+1. `022.00 - MULTI-COUNTRY-ARCHITECTURE-STRATEGY.md`
+2. `010.00 - RABBITMQ_RESILIENCE_STRATEGY.md`
+3. `003.00 - APPLICATION-YML-CONFIGURATION-STRATEGY.md`
+4. `015.00 - DOCKER-COMMUNICATION-AND-API-ROUTING-STRATEGY.md`
+
+---
+
+## 🎓 Conclusão
+
+Esta sessão de debugging e correção demonstrou a importância de:
+- **Normalização consistente de dados**
+- **Gerenciamento cuidadoso de estado em testes**
+- **Resiliência a formatação inconsistente**
+- **Documentação clara de padrões e anti-padrões**
+- **Ambiente de desenvolvimento alinhado com produção**
+
+As lições aprendidas devem ser incorporadas em:
+- **Code reviews**
+- **Novos desenvolvimentos**
+- **Documentação de padrões**
+- **Treinamento de novos membros do time**
+
+---
+
+**Última atualização**: 2025-12-22  
+**Status**: ✅ Todos os testes E2E passando (202/202)
+

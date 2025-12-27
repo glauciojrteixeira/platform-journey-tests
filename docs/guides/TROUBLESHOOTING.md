@@ -61,24 +61,119 @@ e2e:
   timeout: 60000  # Aumentar de 30000 para 60000
 ```
 
-### **4. Eventos assíncronos não chegam**
+### **4. Eventos assíncronos não chegam / Usuários não encontrados no Auth Service**
 
 **Sintomas**:
 - Testes falham aguardando eventos RabbitMQ
 - Timeout ao verificar eventos
 - Eventos chegam após timeout
+- **"User not found" (404) no Auth Service após criar usuário no Identity Service**
+- **Erros "Socket closed" ao conectar ao RabbitMQ**
+
+**Causas Comuns**:
+1. **RabbitMQ não está rodando**
+2. **Incompatibilidade de Virtual Host**: Testes usando `/br` mas serviços usando `/` (padrão)
+3. **Eventos não sendo publicados/consumidos corretamente**
 
 **Soluções**:
+
+#### **Passo 1: Verificar RabbitMQ está rodando**
 ```bash
-# Verificar RabbitMQ está rodando
+# Verificar container RabbitMQ
 docker ps | grep rabbitmq
-curl http://localhost:15672  # Management UI
 
-# Verificar conectividade RabbitMQ
+# Se não estiver rodando, iniciar infraestrutura
+cd nulote-backend/docker-compose-infrastructure/infra-broker
+docker compose -f docker-compose.br.yml up -d
+
+# Verificar Management UI
+curl http://localhost:15672  # Deve retornar HTML da interface
+
+# Verificar conectividade AMQP
 telnet localhost 5672
+```
 
-# Verificar configuração
-grep rabbitmq src/main/resources/application-local.yml
+#### **Passo 2: Verificar Virtual Host Configuration**
+
+**IMPORTANTE**: Todos (testes + serviços) devem usar o **mesmo virtual host**.
+
+```bash
+# Verificar configuração dos testes
+grep virtual-host src/main/resources/application-local.yml
+# Deve mostrar: virtual-host: ${RABBITMQ_VIRTUAL_HOST:/br}
+
+# Verificar variável de ambiente (se definida)
+echo $RABBITMQ_VIRTUAL_HOST
+
+# Verificar configuração dos serviços
+# Identity Service
+grep SPRING_RABBITMQ_VIRTUAL_HOST nulote-backend/identity-service/docker-compose.yml
+# Auth Service  
+grep SPRING_RABBITMQ_VIRTUAL_HOST nulote-backend/auth-service/docker-compose.yml
+```
+
+#### **Passo 3: Garantir Virtual Host Consistente**
+
+**Opção A: Usar `/br` (Recomendado para Multi-Country)**
+```bash
+# Definir variável de ambiente antes de iniciar serviços
+export SPRING_RABBITMQ_VIRTUAL_HOST=/br
+export RABBITMQ_VIRTUAL_HOST=/br
+
+# Reiniciar serviços com a variável definida
+cd nulote-backend/identity-service
+docker compose down && docker compose up -d
+
+cd ../auth-service
+docker compose down && docker compose up -d
+```
+
+**Opção B: Usar `/` (Padrão, se não usar multi-country)**
+```bash
+# Atualizar application-local.yml
+# Alterar: virtual-host: ${RABBITMQ_VIRTUAL_HOST:/}
+# E garantir que serviços também usem `/`
+```
+
+#### **Passo 4: Verificar Virtual Host no RabbitMQ**
+```bash
+# Acessar Management UI
+open http://localhost:15672
+# Login: guest / guest
+
+# Navegar para: Admin > Virtual Hosts
+# Verificar que `/br` existe (ou criar se não existir)
+
+# Ou via API
+curl -u guest:guest http://localhost:15672/api/vhosts
+```
+
+#### **Passo 5: Verificar Eventos sendo Publicados/Consumidos**
+```bash
+# Verificar filas no RabbitMQ Management UI
+# http://localhost:15672/#/queues
+
+# Filas esperadas:
+# - auth.user-created.q (Auth Service deve estar consumindo)
+# - profile.user-created.q (Profile Service deve estar consumindo)
+
+# Verificar exchanges
+# http://localhost:15672/#/exchanges
+# - identity.events (deve existir)
+# - auth.events (deve existir)
+```
+
+#### **Passo 6: Verificar Logs dos Serviços**
+```bash
+# Identity Service - verificar publicação de eventos
+docker logs identity-service-api -f | grep "user.created.v1"
+
+# Auth Service - verificar consumo de eventos
+docker logs auth-service-api -f | grep "USER.CREATED.CONSUMER"
+
+# Verificar erros de conexão RabbitMQ
+docker logs identity-service-api | grep -i "rabbitmq\|virtual.*host"
+docker logs auth-service-api | grep -i "rabbitmq\|virtual.*host"
 ```
 
 **No código**:
@@ -88,6 +183,15 @@ await().atMost(60, SECONDS)  // Aumentar de 30 para 60
     .pollInterval(500, MILLISECONDS)
     .until(() -> eventReceived(eventType));
 ```
+
+**Checklist Rápido**:
+- [ ] RabbitMQ está rodando (`docker ps | grep rabbitmq`)
+- [ ] Virtual host `/br` existe no RabbitMQ (ou usar `/`)
+- [ ] Todos os serviços usam o mesmo virtual host
+- [ ] Testes usam o mesmo virtual host que os serviços
+- [ ] Filas `auth.user-created.q` e `profile.user-created.q` existem
+- [ ] Exchange `identity.events` existe
+- [ ] Auth Service está consumindo da fila (verificar logs)
 
 ### **5. Testes Flaky (Inconsistentes)**
 
@@ -209,6 +313,6 @@ mvn clean install -DskipTests
 ## 📞 Suporte
 
 Para mais detalhes, consulte:
-- Nota técnica completa: `engineering-playbook/bdd-e2e-testing-strategy.md`
+- Nota técnica completa: `technical-note/bdd-e2e-testing-strategy.md`
 - Seção Troubleshooting na nota técnica (linha 3902+)
 

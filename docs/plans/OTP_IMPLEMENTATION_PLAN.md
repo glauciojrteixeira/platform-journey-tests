@@ -8,7 +8,7 @@ O **OTP (One-Time Password)** é uma funcionalidade crítica do **Auth Service**
 
 ## 🔐 Responsabilidades por BU
 
-### 🔑 Auth Service (VS Identity) - Responsabilidades
+### 🔑 Auth Service (BU Identity) - Responsabilidades
 
 O **Auth Service** é responsável por:
 - ✅ Autenticação via login social ou credenciais

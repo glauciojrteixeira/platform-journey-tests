@@ -1,7 +1,7 @@
-# 🚀 Plano de Implementação - Features dos Microserviços VS Identity
+# 🚀 Plano de Implementação - Features dos Microserviços BU Identity
 
 **Data de Criação**: 2025-11-18  
-**Objetivo**: Implementar as 48 jornadas pendentes (87% do total) nos microserviços da VS Identity  
+**Objetivo**: Implementar as 48 jornadas pendentes (87% do total) nos microserviços da BU Identity  
 **Prazo Estimado**: 6-8 meses (considerando equipe dedicada)
 
 ---
@@ -726,5 +726,5 @@
 
 **Última atualização**: 2025-11-18  
 **Próxima revisão**: Semanal (toda segunda-feira)  
-**Responsável**: Equipe VS Identity + VS-QA
+**Responsável**: Equipe BU Identity + BU QA
 
