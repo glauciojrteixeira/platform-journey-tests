@@ -234,5 +234,73 @@ public class IdentityServiceClient {
             .extract()
             .response();
     }
+    
+    /**
+     * Cria entidade jurídica (Legal Entity).
+     * 
+     * @param request Dados da entidade jurídica (documentNumber, documentType, corporateName, tradeName, corporateEmail, phone)
+     * @return Resposta HTTP
+     */
+    public Response createLegalEntity(Object request) {
+        var logger = org.slf4j.LoggerFactory.getLogger(IdentityServiceClient.class);
+        logger.info("Creating legal entity...");
+        
+        RequestSpecification spec = RestAssured.given()
+            .baseUri(getBaseUrl())
+            .contentType(ContentType.JSON)
+            .header("request-trace-id", getRequestTraceId());
+        
+        spec = addRequiredHeaders(spec);
+        spec = addSimulateProviderHeader(spec);
+        
+        // Log do request body para debug
+        try {
+            if (request instanceof java.util.Map) {
+                @SuppressWarnings("unchecked")
+                java.util.Map<String, Object> requestMap = (java.util.Map<String, Object>) request;
+                logger.info("🔍 [IdentityClient] Legal entity request body: {}", requestMap);
+                logger.info("🔍 [IdentityClient] documentType no request: '{}'", 
+                    requestMap.get("documentType"));
+            }
+        } catch (Exception e) {
+            logger.warn("⚠️ Erro ao logar request body: {}", e.getMessage());
+        }
+        
+        Response response = spec.body(request)
+            .when()
+            .post("/api/v1/identity/legal-entities")
+            .then()
+            .extract()
+            .response();
+        
+        // Log da resposta para debug
+        if (response.getStatusCode() != 200 && response.getStatusCode() != 201) {
+            logger.warn("Failed to create legal entity. Status: {}, Body: {}", 
+                response.getStatusCode(), 
+                response.getBody() != null ? response.getBody().asString() : "null");
+        } else {
+            logger.info("✅ Legal entity created successfully. Status: {}", response.getStatusCode());
+        }
+        
+        return response;
+    }
+    
+    /**
+     * Busca entidade jurídica por UUID.
+     * 
+     * @param uuid UUID da entidade jurídica
+     * @return Resposta HTTP
+     */
+    public Response getLegalEntityByUuid(String uuid) {
+        RequestSpecification spec = RestAssured.given()
+            .baseUri(getBaseUrl())
+            .header("request-trace-id", getRequestTraceId());
+        spec = addRequiredHeaders(spec);
+        return spec.when()
+            .get("/api/v1/identity/legal-entities/{uuid}", uuid)
+            .then()
+            .extract()
+            .response();
+    }
 }
 

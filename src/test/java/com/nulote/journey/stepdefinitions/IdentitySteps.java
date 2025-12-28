@@ -4,6 +4,7 @@ import com.nulote.journey.clients.AuthServiceClient;
 import com.nulote.journey.clients.IdentityServiceClient;
 import com.nulote.journey.clients.ProfileServiceClient;
 import com.nulote.journey.fixtures.TestDataGenerator;
+import com.nulote.journey.fixtures.TestDataCache;
 import com.nulote.journey.fixtures.UserFixture;
 import io.cucumber.java.pt.Dado;
 import io.cucumber.java.pt.Então;
@@ -34,6 +35,9 @@ public class IdentitySteps {
     
     @Autowired
     private UserFixture userFixture;
+    
+    @Autowired(required = false)
+    private TestDataCache testDataCache;
     
     // Referência para AuthenticationSteps para compartilhar lastResponse
     @Autowired(required = false)
@@ -776,6 +780,204 @@ public class IdentitySteps {
         var logger = org.slf4j.LoggerFactory.getLogger(IdentitySteps.class);
         logger.info("Validando que usuário foi criado no Auth Service com '{}' e '{}' derivados de '{}'", field1, field2, legacyField);
         // Por enquanto, apenas logamos - a validação real pode ser feita consultando o Auth Service
+    }
+    
+    // ========== Step Definitions para Legal Entity Multi-Country ==========
+    
+    // Armazenar dados da entidade jurídica
+    private Map<String, Object> legalEntityData;
+    private String createdLegalEntityUuid;
+    private String createdLegalEntityDocumentNumber;
+    
+    @Quando("eu informo os dados da entidade jurídica:")
+    public void eu_informo_os_dados_da_entidade_juridica(io.cucumber.datatable.DataTable dataTable) {
+        var logger = org.slf4j.LoggerFactory.getLogger(IdentitySteps.class);
+        legalEntityData = new java.util.HashMap<>(dataTable.asMap(String.class, String.class));
+        
+        // Processar placeholders nos dados
+        legalEntityData = processPlaceholders(legalEntityData);
+        
+        // Normalizar documentType para uppercase
+        if (legalEntityData.containsKey("documentType")) {
+            String documentType = (String) legalEntityData.get("documentType");
+            if (documentType != null) {
+                legalEntityData.put("documentType", documentType.toUpperCase().trim());
+            }
+        }
+        
+        logger.info("Dados da entidade jurídica preparados: {}", legalEntityData);
+    }
+    
+    @Quando("eu envio a requisição para criar entidade jurídica")
+    public void eu_envio_a_requisicao_para_criar_entidade_juridica() {
+        var logger = org.slf4j.LoggerFactory.getLogger(IdentitySteps.class);
+        
+        if (legalEntityData == null || legalEntityData.isEmpty()) {
+            throw new IllegalStateException("Dados da entidade jurídica não foram informados. Execute 'eu informo os dados da entidade jurídica' primeiro.");
+        }
+        
+        logger.info("Enviando requisição para criar entidade jurídica: {}", legalEntityData);
+        
+        Response response = identityClient.createLegalEntity(legalEntityData);
+        setLastResponse(response);
+        
+        // Se criado com sucesso, armazenar UUID e documentNumber
+        if (response.getStatusCode() == 201 || response.getStatusCode() == 200) {
+            createdLegalEntityUuid = response.jsonPath().getString("uuid");
+            createdLegalEntityDocumentNumber = response.jsonPath().getString("documentNumber");
+            logger.info("Entidade jurídica criada com sucesso. UUID: {}, DocumentNumber: {}", 
+                createdLegalEntityUuid, createdLegalEntityDocumentNumber);
+        }
+    }
+    
+    @Então("a entidade jurídica deve ser criada com sucesso")
+    public void a_entidade_juridica_deve_ser_criada_com_sucesso() {
+        Response response = getLastResponse();
+        assertThat(response)
+            .as("Resposta não deve ser nula")
+            .isNotNull();
+        assertThat(response.getStatusCode())
+            .as("Entidade jurídica deve ser criada com sucesso. Status: %s, Body: %s", 
+                response.getStatusCode(),
+                response.getBody() != null ? response.getBody().asString() : "null")
+            .isIn(200, 201);
+    }
+    
+    @Então("o {string} deve ser igual ao informado")
+    public void o_deve_ser_igual_ao_informado(String field) {
+        Response response = getLastResponse();
+        assertThat(response)
+            .as("Resposta não deve ser nula")
+            .isNotNull();
+        
+        String actualValue = response.jsonPath().getString(field);
+        String expectedValue = legalEntityData != null ? (String) legalEntityData.get(field) : null;
+        
+        // Para documentNumber, pode haver diferença de formatação (com/sem máscara)
+        if ("documentNumber".equals(field) && expectedValue != null && actualValue != null) {
+            // Remover formatação para comparação
+            String cleanExpected = expectedValue.replaceAll("\\D", "");
+            String cleanActual = actualValue.replaceAll("\\D", "");
+            assertThat(cleanActual)
+                .as("Campo '%s' deve ser igual ao informado. Esperado: %s, Atual: %s", field, cleanExpected, cleanActual)
+                .isEqualTo(cleanExpected);
+        } else {
+            assertThat(actualValue)
+                .as("Campo '%s' deve ser igual ao informado. Esperado: %s, Atual: %s", field, expectedValue, actualValue)
+                .isEqualTo(expectedValue);
+        }
+    }
+    
+    @Dado("que já existe uma entidade jurídica com documento {string} do tipo {string}")
+    public void que_ja_existe_uma_entidade_juridica_com_documento_do_tipo(String documentNumber, String documentType) {
+        var logger = org.slf4j.LoggerFactory.getLogger(IdentitySteps.class);
+        
+        // Processar placeholders
+        String processedDocumentNumber = processPlaceholder(documentNumber);
+        String processedDocumentType = processPlaceholder(documentType);
+        
+        // Normalizar documentType
+        if (processedDocumentType != null) {
+            processedDocumentType = processedDocumentType.toUpperCase().trim();
+        }
+        
+        // Gerar documento válido se necessário
+        String validDocument = processedDocumentNumber;
+        if (processedDocumentType != null) {
+            if ("CNPJ".equals(processedDocumentType)) {
+                validDocument = TestDataGenerator.generateUniqueCnpj();
+            } else if ("CUIT".equals(processedDocumentType)) {
+                validDocument = TestDataGenerator.generateUniqueCuit();
+            } else if ("RUT".equals(processedDocumentType)) {
+                validDocument = TestDataGenerator.generateUniqueRut();
+            } else if ("NIT".equals(processedDocumentType)) {
+                validDocument = TestDataGenerator.generateUniqueNit();
+            } else if ("EIN".equals(processedDocumentType)) {
+                validDocument = TestDataGenerator.generateUniqueEin();
+            }
+        }
+        
+        // Criar entidade jurídica
+        Map<String, Object> request = new java.util.HashMap<>();
+        request.put("documentNumber", validDocument);
+        request.put("documentType", processedDocumentType);
+        request.put("corporateName", "Empresa Existente " + System.currentTimeMillis());
+        request.put("tradeName", "Empresa Existente");
+        request.put("corporateEmail", "existente-" + System.currentTimeMillis() + "@example.com");
+        request.put("phone", TestDataGenerator.generateUniquePhone());
+        
+        Response response = identityClient.createLegalEntity(request);
+        
+        if (response.getStatusCode() == 201 || response.getStatusCode() == 200) {
+            logger.info("Entidade jurídica criada para setup do teste. DocumentNumber: {}, DocumentType: {}", 
+                validDocument, processedDocumentType);
+            // Armazenar documentNumber para uso em {same_document}
+            if (testDataCache != null) {
+                testDataCache.cacheDocument("SAME_DOCUMENT", validDocument);
+            }
+        } else {
+            logger.warn("Não foi possível criar entidade jurídica para setup do teste. Status: {}, Body: {}", 
+                response.getStatusCode(),
+                response.getBody() != null ? response.getBody().asString() : "null");
+        }
+    }
+    
+    // NOTA: O step "a mensagem de erro deve conter {string}" está implementado em AuthenticationSteps
+    // para evitar duplicação. Ambos os step definitions compartilham a mesma implementação.
+    
+    // Helper para processar placeholders
+    private Map<String, Object> processPlaceholders(Map<String, Object> data) {
+        Map<String, Object> processed = new java.util.HashMap<>();
+        for (Map.Entry<String, Object> entry : data.entrySet()) {
+            Object value = entry.getValue();
+            if (value instanceof String) {
+                processed.put(entry.getKey(), processPlaceholder((String) value));
+            } else {
+                processed.put(entry.getKey(), value);
+            }
+        }
+        return processed;
+    }
+    
+    private String processPlaceholder(String value) {
+        if (value == null) {
+            return null;
+        }
+        
+        // Remover aspas duplas se presentes
+        String trimmedValue = value.trim();
+        if (trimmedValue.startsWith("\"") && trimmedValue.endsWith("\"")) {
+            trimmedValue = trimmedValue.substring(1, trimmedValue.length() - 1).trim();
+        }
+        
+        // Processar placeholders conhecidos
+        if (trimmedValue.equals("{unique_cnpj}")) {
+            return TestDataGenerator.generateUniqueCnpj();
+        } else if (trimmedValue.equals("{unique_cuit}")) {
+            return TestDataGenerator.generateUniqueCuit();
+        } else if (trimmedValue.equals("{unique_rut}")) {
+            return TestDataGenerator.generateUniqueRut();
+        } else if (trimmedValue.equals("{unique_nit}")) {
+            return TestDataGenerator.generateUniqueNit();
+        } else if (trimmedValue.equals("{unique_ein}")) {
+            return TestDataGenerator.generateUniqueEin();
+        } else if (trimmedValue.equals("{unique_email}")) {
+            return TestDataGenerator.generateUniqueEmail();
+        } else if (trimmedValue.equals("{unique_phone}")) {
+            return TestDataGenerator.generateUniquePhone();
+        } else if (trimmedValue.equals("{same_document}")) {
+            // Recuperar documento do cache
+            if (testDataCache != null) {
+                String cached = testDataCache.getCachedDocument("SAME_DOCUMENT");
+                if (cached != null) {
+                    return cached;
+                }
+            }
+            // Fallback: gerar novo documento
+            return TestDataGenerator.generateUniqueCnpj();
+        }
+        
+        return trimmedValue;
     }
 }
 

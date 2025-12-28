@@ -495,5 +495,138 @@ public class TestDataGenerator {
         usedSsns.add(formatted);
         return formatted;
     }
+    
+    private static final Set<String> usedNits = ConcurrentHashMap.newKeySet();
+    private static final Set<String> usedEins = ConcurrentHashMap.newKeySet();
+    
+    /**
+     * Gera um NIT único para testes (Bolívia).
+     * NIT (Número de Identificación Tributaria) tem 11 dígitos com dígito verificador.
+     * 
+     * @return NIT único com 11 dígitos e dígito verificador válido
+     */
+    public static String generateUniqueNit() {
+        String nit;
+        int maxAttempts = 1000;
+        int attempts = 0;
+        
+        do {
+            long uniqueValue = (TIMESTAMP % 10000000000L) + 
+                              (Math.abs(EXECUTION_ID.hashCode()) % 10000000000L) + 
+                              cpfCounter.incrementAndGet();
+            
+            String base = String.format("%010d", Math.abs(uniqueValue) % 10000000000L);
+            nit = calculateNitChecksum(base);
+            
+            attempts++;
+            
+            if (attempts >= maxAttempts) {
+                long randomValue = System.nanoTime() % 10000000000L;
+                base = String.format("%010d", Math.abs(randomValue));
+                nit = calculateNitChecksum(base);
+                break;
+            }
+        } while (usedNits.contains(nit));
+        
+        usedNits.add(nit);
+        return nit;
+    }
+    
+    /**
+     * Calcula dígito verificador de NIT usando algoritmo Módulo 11.
+     */
+    private static String calculateNitChecksum(String base) {
+        if (base == null || base.length() != 10) {
+            throw new IllegalArgumentException("Base do NIT deve ter exatamente 10 dígitos");
+        }
+        
+        int[] digits = new int[11];
+        for (int i = 0; i < 10; i++) {
+            digits[i] = Character.getNumericValue(base.charAt(i));
+        }
+        
+        // Algoritmo de validação NIT (Bolívia): Módulo 11 com pesos decrescentes
+        int[] weights = {11, 10, 9, 8, 7, 6, 5, 4, 3, 2};
+        int sum = 0;
+        for (int i = 0; i < 10; i++) {
+            sum += digits[i] * weights[i];
+        }
+        
+        int remainder = sum % 11;
+        int checkDigit = remainder < 2 ? 0 : 11 - remainder;
+        digits[10] = checkDigit;
+        
+        StringBuilder nit = new StringBuilder(11);
+        for (int digit : digits) {
+            nit.append(digit);
+        }
+        return nit.toString();
+    }
+    
+    /**
+     * Gera um EIN único para testes (Estados Unidos).
+     * EIN (Employer Identification Number) tem 9 dígitos no formato XX-XXXXXXX.
+     * 
+     * Regras de validação do EIN:
+     * 1. Primeiros 2 dígitos (prefixo): não pode ser "00", "07", "08", "09", "17", "18", "19", "28", "29", "49", "69", "70", "78", "79", "80", "90", "96", "97"
+     * 2. Para testes, vamos gerar um formato válido
+     * 
+     * @return EIN único com 9 dígitos (formato XX-XXXXXXX)
+     */
+    public static String generateUniqueEin() {
+        long uniqueValue = (TIMESTAMP % 1000000000L) + 
+                          (Math.abs(EXECUTION_ID.hashCode()) % 1000000000) + 
+                          cpfCounter.incrementAndGet();
+        
+        // EIN não pode começar com prefixos inválidos
+        // Para testes, vamos gerar um formato válido (prefixos válidos: 01-06, 10-16, 20-27, 30-48, 50-68, 71-77, 81-89, 91-95, 98-99)
+        long einNumber = Math.abs(uniqueValue) % 1000000000L;
+        
+        // Garantir que o prefixo (primeiros 2 dígitos) seja válido
+        int prefix = (int) (einNumber / 10000000);
+        int[] invalidPrefixes = {0, 7, 8, 9, 17, 18, 19, 28, 29, 49, 69, 70, 78, 79, 80, 90, 96, 97};
+        boolean isValidPrefix = true;
+        for (int invalid : invalidPrefixes) {
+            if (prefix == invalid) {
+                isValidPrefix = false;
+                break;
+            }
+        }
+        
+        if (!isValidPrefix || prefix < 1 || prefix > 99) {
+            // Gerar um prefixo válido
+            prefix = (int) ((Math.abs(uniqueValue) % 98) + 1); // 1-98
+            // Ajustar se for inválido
+            for (int invalid : invalidPrefixes) {
+                if (prefix == invalid) {
+                    prefix = (prefix + 1) % 100;
+                    if (prefix == 0) prefix = 1;
+                    break;
+                }
+            }
+            einNumber = prefix * 10000000L + (einNumber % 10000000L);
+        }
+        
+        String ein = String.format("%09d", einNumber);
+        String formatted = ein.substring(0, 2) + "-" + ein.substring(2, 9);
+        
+        if (usedEins.contains(formatted)) {
+            // Se já foi usado, gerar um novo com valores diferentes
+            long newUnique = System.nanoTime();
+            prefix = (int) ((Math.abs(newUnique) % 98) + 1);
+            for (int invalid : invalidPrefixes) {
+                if (prefix == invalid) {
+                    prefix = (prefix + 1) % 100;
+                    if (prefix == 0) prefix = 1;
+                    break;
+                }
+            }
+            long newEinNumber = prefix * 10000000L + (Math.abs(newUnique) % 10000000L);
+            ein = String.format("%09d", newEinNumber);
+            formatted = ein.substring(0, 2) + "-" + ein.substring(2, 9);
+        }
+        usedEins.add(formatted);
+        return formatted;
+    }
 }
 

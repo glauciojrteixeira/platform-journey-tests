@@ -5,6 +5,28 @@ Todas as mudanças notáveis neste projeto serão documentadas neste arquivo.
 O formato é baseado em [Keep a Changelog](https://keepachangelog.com/pt-BR/1.0.0/),
 e este projeto adere ao [Versionamento Semântico](https://semver.org/lang/pt-BR/).
 
+## [0.0.13-SNAPSHOT] - 2025-12-28
+
+### Added
+- **Testes E2E para LegalEntity Multi-Country**: Implementação completa de testes E2E para funcionalidade de entidade jurídica multi-country
+  - `legal_entity_multi_country.feature`: Feature file com 12+ cenários de teste para LegalEntity multi-country
+  - Step definitions para LegalEntity (20+ steps) em `IdentitySteps.java`
+  - Método `createLegalEntity()` adicionado ao `IdentityServiceClient` para chamar endpoint de criação de entidade jurídica
+  - Métodos `generateUniqueNit()` e `generateUniqueEin()` adicionados ao `TestDataGenerator` para geração de documentos PJ válidos (Bolívia e Estados Unidos)
+  - Cenários implementados:
+    - Criação bem-sucedida com CNPJ válido (Brasil)
+    - Criação bem-sucedida com CUIT válido (Argentina)
+    - Criação bem-sucedida com RUT válido (Chile)
+    - Criação bem-sucedida com NIT válido (Bolívia)
+    - Criação bem-sucedida com EIN válido (Estados Unidos)
+    - Validação de erros: CNPJ inválido, CUIT inválido, RUT inválido
+    - Validação de tipo de documento não suportado
+    - Validação de campos obrigatórios (documentNumber, documentType)
+    - Validação de duplicação de documento
+    - Validação de eventos RabbitMQ com `country-code` header
+  - Suporte completo para placeholders dinâmicos (`{unique_cnpj}`, `{unique_cuit}`, `{unique_rut}`, `{unique_nit}`, `{unique_ein}`)
+  - Alinhamento com playbook 019.00 - BDD E2E Testing Strategy
+
 ## [0.0.12-SNAPSHOT] - 2025-12-27
 
 ### Removed
