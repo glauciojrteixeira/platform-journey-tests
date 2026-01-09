@@ -11,7 +11,8 @@ e2e:
     enabled: true  # Sempre simular em local para evitar custos e dependências externas
   services:
     identity-url: http://localhost:8084
-    auth-url: http://localhost:8080
+    auth-url: http://localhost:8080  # API direta (para testes internos)
+    auth-relay-url: http://localhost:8081  # Relay (para testes de clientes externos)
     profile-url: http://localhost:8088
     transactional-messaging-url: http://localhost:8188
     delivery-tracker-url: http://localhost:8083

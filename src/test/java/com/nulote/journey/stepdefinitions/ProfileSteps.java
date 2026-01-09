@@ -206,6 +206,25 @@ public class ProfileSteps {
                             Math.max(eventTimeoutSeconds, 5), finalUserUuid);
                         // Não falhar aqui - alguns testes podem criar perfil manualmente
                     }
+                    
+                    // Fazer login para obter JWT token (necessário para operações autenticadas)
+                    try {
+                        var loginRequest = userFixture.buildLoginRequest();
+                        var loginResponse = authClient.login(loginRequest);
+                        if (loginResponse.getStatusCode() == 200) {
+                            String jwtToken = loginResponse.jsonPath().getString("token");
+                            if (jwtToken == null) {
+                                jwtToken = loginResponse.jsonPath().getString("accessToken");
+                            }
+                            if (jwtToken != null) {
+                                userFixture.setJwtToken(jwtToken);
+                                logger.debug("✅ JWT token obtido e armazenado no UserFixture");
+                            }
+                        }
+                    } catch (Exception e) {
+                        logger.warn("Não foi possível fazer login para obter JWT token: {}", e.getMessage());
+                        // Não falhar - alguns testes podem não precisar de autenticação
+                    }
                 }
             } catch (Exception e) {
                 org.slf4j.LoggerFactory.getLogger(ProfileSteps.class)

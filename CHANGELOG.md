@@ -5,6 +5,30 @@ Todas as mudanças notáveis neste projeto serão documentadas neste arquivo.
 O formato é baseado em [Keep a Changelog](https://keepachangelog.com/pt-BR/1.0.0/),
 e este projeto adere ao [Versionamento Semântico](https://semver.org/lang/pt-BR/).
 
+## [0.0.14-SNAPSHOT] - 2026-01-09
+
+### Added
+- **Testes E2E para Social Login e Account Linking**: Implementação completa de testes E2E para autenticação social e vinculação de contas
+  - `social_login.feature`: Feature file com cenários de teste para login social (OAuth2)
+  - `social_account_linking.feature`: Feature file com cenários de teste para vinculação de contas sociais
+  - `social_login_relay.feature`: Feature file com cenários de teste para login social via relay
+  - `social_account_linking_relay.feature`: Feature file com cenários de teste para account linking via relay
+  - `social_login_data_integrity.feature`: Feature file com cenários de teste para integridade de dados em login social
+  - `social_login_mfa.feature`: Feature file com cenários de teste para MFA em login social
+  - `denormalized_data_validation.feature`: Feature file com cenários de teste para validação de dados desnormalizados
+  - `source_of_truth_validation.feature`: Feature file com cenários de teste para validação de fonte única da verdade
+  - Step definitions para Social Login em `SocialLoginSteps.java`
+  - Step definitions para Account Linking em `SocialAccountLinkingSteps.java`
+  - Métodos adicionados ao `AuthServiceClient` para suporte a OAuth2 e account linking
+  - Métodos adicionados ao `IdentityServiceClient` para suporte a entidades jurídicas
+  - Métodos adicionados ao `UserFixture` para geração de dados de teste
+  - Atualizações em `AuthenticationSteps.java`, `IdentitySteps.java` e `ProfileSteps.java`
+  - Configuração atualizada em `E2EConfiguration.java` e `application-local.yml`
+
+### Changed
+- **Client Implementations**: Melhorias nos clients para suporte completo a OAuth2 e account linking
+- **Step Definitions**: Expansão significativa das step definitions para cobrir todos os cenários de social login e account linking
+
 ## [0.0.13-SNAPSHOT] - 2025-12-28
 
 ### Added

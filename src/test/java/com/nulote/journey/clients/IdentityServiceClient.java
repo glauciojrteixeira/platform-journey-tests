@@ -18,6 +18,9 @@ public class IdentityServiceClient {
     @Autowired
     private E2EConfiguration config;
     
+    @Autowired(required = false)
+    private com.nulote.journey.fixtures.UserFixture userFixture;
+    
     private String getBaseUrl() {
         return config.getServices().getIdentityUrl();
     }
@@ -29,6 +32,11 @@ public class IdentityServiceClient {
     /**
      * Adiciona os headers obrigatórios de correlação e governança.
      * Inclui o header country-code para suporte multi-country (conforme refatoração).
+     * 
+     * Conforme playbook 006.00 - HTTP-HEADERS-CORRELATION.md:
+     * - request-caller: Header obrigatório validado pelo CorrelationFilter
+     * - request-origin: Header obrigatório validado pelo CorrelationFilter
+     * - country-code: Header para suporte multi-country (lowercase conforme RFC 6648)
      * 
      * @param spec RequestSpecification do RestAssured
      * @return RequestSpecification com headers adicionados
@@ -43,6 +51,27 @@ public class IdentityServiceClient {
         var logger = org.slf4j.LoggerFactory.getLogger(IdentityServiceClient.class);
         logger.debug("🌍 [MULTI-COUNTRY] Header 'country-code: {}' adicionado à requisição", countryCode);
         
+        return spec;
+    }
+    
+    /**
+     * Adiciona o header Authorization com JWT token se disponível.
+     * 
+     * @param spec RequestSpecification do RestAssured
+     * @return RequestSpecification com header Authorization adicionado (se token disponível)
+     */
+    private RequestSpecification addAuthHeader(RequestSpecification spec) {
+        if (userFixture != null) {
+            String jwtToken = userFixture.getJwtToken();
+            if (jwtToken != null && !jwtToken.trim().isEmpty()) {
+                spec = spec.header("Authorization", "Bearer " + jwtToken);
+                var logger = org.slf4j.LoggerFactory.getLogger(IdentityServiceClient.class);
+                logger.debug("🔐 [AUTH] Header 'Authorization: Bearer ...' adicionado à requisição");
+            } else {
+                var logger = org.slf4j.LoggerFactory.getLogger(IdentityServiceClient.class);
+                logger.debug("⚠️ [AUTH] JWT token não disponível - requisição será feita sem autenticação");
+            }
+        }
         return spec;
     }
     
@@ -177,6 +206,7 @@ public class IdentityServiceClient {
             .baseUri(getBaseUrl())
             .header("request-trace-id", getRequestTraceId());
         spec = addRequiredHeaders(spec);
+        spec = addAuthHeader(spec); // Adicionar autenticação JWT se disponível
         return spec.when()
             .get("/api/v1/identity/users/{uuid}", uuid)
             .then()
@@ -198,17 +228,47 @@ public class IdentityServiceClient {
     }
     
     public Response updateUser(String uuid, Object request) {
+        var logger = org.slf4j.LoggerFactory.getLogger(IdentityServiceClient.class);
+        logger.info("🔄 [UPDATE] Preparando atualização de usuário: uuid={}, request={}", uuid, request);
+        
         RequestSpecification spec = RestAssured.given()
             .baseUri(getBaseUrl())
             .contentType(ContentType.JSON)
             .header("request-trace-id", getRequestTraceId());
         spec = addRequiredHeaders(spec);
-        return spec.body(request)
+        spec = addAuthHeader(spec); // Adicionar autenticação JWT se disponível
+        
+        // Verificar se JWT foi adicionado
+        if (userFixture != null) {
+            String jwtToken = userFixture.getJwtToken();
+            if (jwtToken != null && !jwtToken.trim().isEmpty()) {
+                logger.info("✅ [UPDATE] JWT disponível para autenticação (length: {})", jwtToken.length());
+            } else {
+                logger.warn("⚠️ [UPDATE] JWT não disponível - requisição será feita sem autenticação");
+            }
+        } else {
+            logger.warn("⚠️ [UPDATE] UserFixture não disponível - requisição será feita sem autenticação");
+        }
+        
+        Response response = spec.body(request)
             .when()
             .put("/api/v1/identity/users/{uuid}", uuid)
             .then()
             .extract()
             .response();
+        
+        int statusCode = response.getStatusCode();
+        String responseBody = response.getBody() != null ? response.getBody().asString() : "null";
+        logger.info("📥 [UPDATE] Resposta do identity-service: status={}, body={}", statusCode, 
+            responseBody.length() > 300 ? responseBody.substring(0, 300) + "..." : responseBody);
+        
+        if (statusCode == 500) {
+            logger.error("❌ [UPDATE] Erro 500 ao atualizar usuário: uuid={}, body={}", uuid, responseBody);
+        } else if (statusCode == 401 || statusCode == 403) {
+            logger.error("❌ [UPDATE] Erro de autenticação/autorização: status={}, body={}", statusCode, responseBody);
+        }
+        
+        return response;
     }
     
     public Response deactivateUser(String uuid) {
@@ -216,6 +276,7 @@ public class IdentityServiceClient {
             .baseUri(getBaseUrl())
             .header("request-trace-id", getRequestTraceId());
         spec = addRequiredHeaders(spec);
+        spec = addAuthHeader(spec); // Adicionar autenticação JWT se disponível
         return spec.when()
             .delete("/api/v1/identity/users/{uuid}", uuid)
             .then()

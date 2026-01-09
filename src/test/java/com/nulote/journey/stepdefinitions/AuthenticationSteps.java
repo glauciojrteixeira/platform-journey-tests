@@ -1302,6 +1302,7 @@ public class AuthenticationSteps {
             .isNotEmpty();
         // Armazenar token para uso posterior
         currentJwtToken = jwt;
+        userFixture.setJwtToken(jwt); // Armazenar também no UserFixture para uso pelos clientes HTTP
     }
     
     @Então("o evento {string} deve ser publicado")
@@ -1921,6 +1922,9 @@ public class AuthenticationSteps {
         if (lastResponse.getStatusCode() == 200) {
             try {
                 currentJwtToken = lastResponse.jsonPath().getString("token");
+                if (currentJwtToken != null) {
+                    userFixture.setJwtToken(currentJwtToken); // Armazenar também no UserFixture
+                }
             } catch (Exception e) {
                 // Token pode estar em outro campo ou formato
                 logger.debug("Não foi possível extrair token da resposta: {}", e.getMessage());
@@ -1949,6 +1953,9 @@ public class AuthenticationSteps {
                 currentJwtToken = lastResponse.jsonPath().getString("token");
                 if (currentJwtToken == null) {
                     currentJwtToken = lastResponse.jsonPath().getString("accessToken");
+                }
+                if (currentJwtToken != null) {
+                    userFixture.setJwtToken(currentJwtToken); // Armazenar também no UserFixture
                 }
             } catch (Exception e) {
                 org.slf4j.LoggerFactory.getLogger(AuthenticationSteps.class)
@@ -1997,6 +2004,14 @@ public class AuthenticationSteps {
     
     @Então("o erro deve ser {string}")
     public void o_erro_deve_ser(String errorCode) {
+        // ✅ Verificar se lastResponse é null antes de acessar
+        if (lastResponse == null) {
+            throw new IllegalStateException(
+                "Nenhuma resposta disponível. Execute um step que faça uma requisição HTTP primeiro. " +
+                "A requisição pode ter falhado antes de criar uma resposta."
+            );
+        }
+        
         // Tentar diferentes caminhos possíveis para o código de erro
         String actualErrorCode = null;
         try {
@@ -2005,14 +2020,18 @@ public class AuthenticationSteps {
             // Tentar caminho alternativo (errorCode direto)
             try {
                 actualErrorCode = lastResponse.jsonPath().getString("errorCode");
-            } catch (Exception e2) {
-                try {
-                    actualErrorCode = lastResponse.jsonPath().getString("code");
-                } catch (Exception e3) {
-                    // Se não encontrar, usar o corpo da resposta para debug
+        } catch (Exception e2) {
+            try {
+                actualErrorCode = lastResponse.jsonPath().getString("code");
+            } catch (Exception e3) {
+                // Se não encontrar, usar o corpo da resposta para debug
+                if (lastResponse.getBody() != null) {
                     actualErrorCode = lastResponse.getBody().asString();
+                } else {
+                    actualErrorCode = "body is null";
                 }
             }
+        }
         }
         
         // Aceitar tanto o código esperado quanto códigos equivalentes da API
@@ -2411,6 +2430,7 @@ public class AuthenticationSteps {
                 try {
                     currentJwtToken = lastResponse.jsonPath().getString("token");
                     if (currentJwtToken != null) {
+                        userFixture.setJwtToken(currentJwtToken); // Armazenar também no UserFixture
                         logger.info("✅ Login bem-sucedido. Token JWT obtido.");
                         return; // Usuário já autenticado, não precisa criar novo
                     }
@@ -2481,11 +2501,15 @@ public class AuthenticationSteps {
                 .warn("Login falhou com 401 - credenciais podem não ter sido criadas automaticamente após registro");
             // Não falhar o teste aqui, apenas logar o warning
             currentJwtToken = null;
+            userFixture.setJwtToken(null); // Limpar também no UserFixture
         } else if (lastResponse != null && lastResponse.getStatusCode() == 200) {
             try {
                 currentJwtToken = lastResponse.jsonPath().getString("token");
                 if (currentJwtToken == null) {
                     currentJwtToken = lastResponse.jsonPath().getString("accessToken");
+                }
+                if (currentJwtToken != null) {
+                    userFixture.setJwtToken(currentJwtToken); // Armazenar também no UserFixture
                 }
             } catch (Exception e) {
                 org.slf4j.LoggerFactory.getLogger(AuthenticationSteps.class)
@@ -2518,6 +2542,9 @@ public class AuthenticationSteps {
                         currentJwtToken = lastResponse.jsonPath().getString("token");
                         if (currentJwtToken == null) {
                             currentJwtToken = lastResponse.jsonPath().getString("accessToken");
+                        }
+                        if (currentJwtToken != null) {
+                            userFixture.setJwtToken(currentJwtToken); // Armazenar também no UserFixture
                         }
                     } catch (Exception e) {
                         // Token não encontrado
@@ -2594,6 +2621,9 @@ public class AuthenticationSteps {
     public void eu_faco_login_novamente() {
         eu_faco_login_com_minhas_credenciais();
         currentJwtToken = lastResponse.jsonPath().getString("token");
+        if (currentJwtToken != null) {
+            userFixture.setJwtToken(currentJwtToken); // Armazenar também no UserFixture
+        }
     }
     
     @Então("eu devo receber um novo JWT válido")
@@ -2617,6 +2647,7 @@ public class AuthenticationSteps {
         
         // Atualizar currentJwtToken com o novo token
         currentJwtToken = newToken;
+        userFixture.setJwtToken(newToken); // Armazenar também no UserFixture
         
         // Validar que o token é um JWT válido (formato: header.payload.signature)
         String[] parts = newToken.split("\\.");
@@ -2670,6 +2701,9 @@ public class AuthenticationSteps {
                         currentJwtToken = lastResponse.jsonPath().getString("token");
                         if (currentJwtToken == null) {
                             currentJwtToken = lastResponse.jsonPath().getString("accessToken");
+                        }
+                        if (currentJwtToken != null) {
+                            userFixture.setJwtToken(currentJwtToken); // Armazenar também no UserFixture
                         }
                     } catch (Exception e) {
                         // Token pode não estar disponível
@@ -2786,6 +2820,7 @@ public class AuthenticationSteps {
     public void eu_removo_o_token_apenas_do_frontend() {
         // Simular remoção apenas do frontend (sem chamada ao servidor)
         currentJwtToken = null;
+        userFixture.setJwtToken(null); // Limpar também no UserFixture
     }
     
     @Então("o token ainda é válido no servidor")
@@ -2804,6 +2839,7 @@ public class AuthenticationSteps {
     public void que_nao_tenho_header_authorization() {
         // Limpar token para simular ausência de header
         currentJwtToken = null;
+        userFixture.setJwtToken(null); // Limpar também no UserFixture
     }
     
     @Dado("que tenho um header Authorization malformado")
@@ -2993,6 +3029,9 @@ public class AuthenticationSteps {
                     currentJwtToken = lastResponse.jsonPath().getString("token");
                     if (currentJwtToken == null) {
                         currentJwtToken = lastResponse.jsonPath().getString("accessToken");
+                    }
+                    if (currentJwtToken != null) {
+                        userFixture.setJwtToken(currentJwtToken); // Armazenar também no UserFixture
                     }
                 } catch (Exception e) {
                     logger.warn("Não foi possível extrair token da resposta de login");

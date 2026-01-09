@@ -9,6 +9,8 @@ import io.restassured.specification.RequestSpecification;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 
+import java.util.Map;
+
 /**
  * Cliente HTTP para comunicação com o Auth Service.
  */
@@ -20,6 +22,21 @@ public class AuthServiceClient {
     
     private String getBaseUrl() {
         return config.getServices().getAuthUrl();
+    }
+    
+    /**
+     * Retorna a URL base do relay (porta 8081, context-path /relay).
+     * Usado para testes que simulam clientes externos passando pelo relay.
+     * 
+     * @return URL base do relay (ex: http://localhost:8081)
+     */
+    private String getRelayBaseUrl() {
+        String relayUrl = config.getServices().getAuthRelayUrl();
+        if (relayUrl == null || relayUrl.isEmpty()) {
+            // Fallback: se não configurado, usar porta 8081
+            return "http://localhost:8081";
+        }
+        return relayUrl;
     }
     
     private String getRequestTraceId() {
@@ -67,14 +84,13 @@ public class AuthServiceClient {
      * @return RequestSpecification com header adicionado (se necessário)
      */
     private RequestSpecification addSimulateProviderHeader(RequestSpecification spec) {
+        var logger = org.slf4j.LoggerFactory.getLogger(AuthServiceClient.class);
         if (config.shouldSimulateProvider()) {
             spec = spec.header("simulate-provider", "true");
-            var logger = org.slf4j.LoggerFactory.getLogger(AuthServiceClient.class);
-            logger.debug("✅ [SIMULATE-PROVIDER] Header 'simulate-provider: true' adicionado à requisição (ambiente: {})", 
+            logger.info("✅ [SIMULATE-PROVIDER] Header 'simulate-provider: true' adicionado à requisição (ambiente: {})", 
                 config.getEnvironment());
         } else {
-            var logger = org.slf4j.LoggerFactory.getLogger(AuthServiceClient.class);
-            logger.debug("⚠️ [SIMULATE-PROVIDER] Header 'simulate-provider' NÃO adicionado (ambiente: {}, shouldSimulate: {})", 
+            logger.warn("⚠️ [SIMULATE-PROVIDER] Header 'simulate-provider' NÃO adicionado (ambiente: {}, shouldSimulate: {})", 
                 config.getEnvironment(), config.shouldSimulateProvider());
         }
         return spec;
@@ -579,6 +595,298 @@ public class AuthServiceClient {
         return spec.pathParam("otpId", otpId)
             .when()
             .get("/api/v1/auth/otp/{otpId}/test-code")
+            .then()
+            .extract()
+            .response();
+    }
+    
+    /**
+     * Inicia o fluxo OAuth2 Authorization Code para login social.
+     * 
+     * @param provider Provider OAuth2 (GOOGLE, FACEBOOK, INSTAGRAM)
+     * @param redirectUri URI de redirecionamento após autenticação
+     * @return Resposta HTTP (302 redirect para provider)
+     */
+    public Response initiateSocialLogin(String provider, String redirectUri) {
+        RequestSpecification spec = RestAssured.given()
+            .baseUri(getBaseUrl())
+            .header("request-trace-id", getRequestTraceId());
+        spec = addRequiredHeaders(spec);
+        spec = addSimulateProviderHeader(spec); // Para simular provider em testes
+        return spec.queryParam("provider", provider)
+            .queryParam("redirect_uri", redirectUri)
+            .when()
+            .redirects().follow(false) // Não seguir redirect automaticamente
+            .get("/api/oauth2/authorize") // ✅ Context-path /api é necessário
+            .then()
+            .extract()
+            .response();
+    }
+    
+    /**
+     * Processa o callback OAuth2 do provider.
+     * 
+     * IMPORTANTE: Com o header simulate-provider=true, o endpoint /api/oauth2/callback
+     * processa o callback diretamente sem depender do Spring Security OAuth2 já ter processado.
+     * 
+     * O controller verifica o header simulate-provider e, quando presente, simula os dados
+     * do usuário do provider e processa o login social diretamente.
+     * 
+     * @param code Authorization code retornado pelo provider
+     * @param state State gerado na requisição inicial
+     * @param redirectUri URI de redirecionamento original
+     * @return Resposta HTTP (302 redirect com JWT ou estado pendente)
+     */
+    public Response processOAuth2Callback(String code, String state, String redirectUri) {
+        return processOAuth2Callback(code, state, redirectUri, null);
+    }
+    
+    /**
+     * Processa o callback OAuth2 do provider com email opcional para account linking.
+     * 
+     * @param code Authorization code retornado pelo provider
+     * @param state State gerado na requisição inicial
+     * @param redirectUri URI de redirecionamento original
+     * @param email Email do provider (opcional, usado para account linking quando corresponde ao email do usuário existente)
+     * @return Resposta HTTP (302 redirect com JWT ou estado pendente)
+     */
+    public Response processOAuth2Callback(String code, String state, String redirectUri, String email) {
+        RequestSpecification spec = RestAssured.given()
+            .baseUri(getBaseUrl())
+            .header("request-trace-id", getRequestTraceId());
+        spec = addRequiredHeaders(spec);
+        spec = addSimulateProviderHeader(spec); // ✅ Para simular provider em testes - permite processar callback diretamente
+        
+        // ✅ Com simulate-provider=true, o endpoint /api/oauth2/callback processa diretamente
+        // sem depender do Spring Security OAuth2 já ter processado o callback
+        spec = spec.queryParam("code", code)
+            .queryParam("state", state)
+            .queryParam("redirect_uri", redirectUri);
+        
+        // ✅ Se email foi fornecido, passar como query param para account linking
+        if (email != null && !email.isBlank()) {
+            spec = spec.queryParam("email", email);
+            var logger = org.slf4j.LoggerFactory.getLogger(AuthServiceClient.class);
+            logger.info("✅ [ACCOUNT_LINKING] Email do provider passado para callback: email={}", email);
+        }
+        
+        return spec.when()
+            .redirects().follow(false) // Não seguir redirect automaticamente
+            .get("/api/oauth2/callback") // ✅ Endpoint que processa callback (suporta simulate-provider)
+            .then()
+            .extract()
+            .response();
+    }
+    
+    /**
+     * Segue um redirect HTTP (302/307).
+     * 
+     * @param location URL completa do redirect
+     * @return Resposta HTTP após seguir o redirect
+     */
+    public Response followRedirect(String location) {
+        RequestSpecification spec = RestAssured.given()
+            .header("request-trace-id", getRequestTraceId());
+        spec = addRequiredHeaders(spec);
+        spec = addSimulateProviderHeader(spec);
+        
+        // Se location é relativa, usar baseUrl
+        if (location.startsWith("/")) {
+            spec = spec.baseUri(getBaseUrl());
+        }
+        
+        return spec.when()
+            .redirects().follow(false)
+            .get(location)
+            .then()
+            .extract()
+            .response();
+    }
+    
+    /**
+     * Processa callback OAuth2 com erro do provider.
+     * 
+     * @param error Código de erro do provider (ex: access_denied)
+     * @param errorDescription Descrição do erro
+     * @param state State gerado na requisição inicial
+     * @param redirectUri URI de redirecionamento original
+     * @return Resposta HTTP (302 redirect com erro)
+     */
+    public Response processOAuth2CallbackWithError(String error, String errorDescription, String state, String redirectUri) {
+        RequestSpecification spec = RestAssured.given()
+            .baseUri(getBaseUrl())
+            .header("request-trace-id", getRequestTraceId());
+        spec = addRequiredHeaders(spec);
+        spec = addSimulateProviderHeader(spec);
+        return spec.queryParam("error", error)
+            .queryParam("error_description", errorDescription != null ? errorDescription : "")
+            .queryParam("state", state)
+            .queryParam("redirect_uri", redirectUri)
+            .when()
+            .redirects().follow(false)
+            .get("/api/oauth2/callback") // ✅ Context-path /api é necessário
+            .then()
+            .extract()
+            .response();
+    }
+    
+    /**
+     * Valida OTP para completar account linking.
+     * 
+     * @param pendingLinkId UUID do PendingAccountLink
+     * @param otpCode Código OTP
+     * @return Resposta HTTP
+     */
+    public Response verifyAccountLinking(String pendingLinkId, String otpCode) {
+        RequestSpecification spec = RestAssured.given()
+            .baseUri(getBaseUrl())
+            .contentType(ContentType.JSON)
+            .header("request-trace-id", getRequestTraceId());
+        spec = addRequiredHeaders(spec);
+        spec = addSimulateProviderHeader(spec);
+        
+        Map<String, String> request = new java.util.HashMap<>();
+        request.put("pendingLinkId", pendingLinkId);
+        request.put("code", otpCode);
+        
+        return spec.body(request)
+            .when()
+            .post("/api/v1/auth/social/link/verify")
+            .then()
+            .extract()
+            .response();
+    }
+    
+    /**
+     * Valida OTP para completar login social (MFA).
+     * 
+     * @param pendingOtpId UUID do OTP pendente
+     * @param otpCode Código OTP
+     * @return Resposta HTTP
+     */
+    public Response verifySocialLoginOtp(String pendingOtpId, String otpCode) {
+        RequestSpecification spec = RestAssured.given()
+            .baseUri(getBaseUrl())
+            .contentType(ContentType.JSON)
+            .header("request-trace-id", getRequestTraceId());
+        spec = addRequiredHeaders(spec);
+        spec = addSimulateProviderHeader(spec);
+        
+        Map<String, String> request = new java.util.HashMap<>();
+        request.put("pendingOtpId", pendingOtpId);
+        request.put("code", otpCode);
+        
+        return spec.body(request)
+            .when()
+            .post("/api/v1/auth/social/otp/verify")
+            .then()
+            .extract()
+            .response();
+    }
+    
+    // ============================================================================
+    // Métodos para usar via RELAY (simulando clientes externos)
+    // ============================================================================
+    // O relay tem context-path /relay e faz proxy transparente para a API
+    // Path completo: /relay/api/oauth2/authorize → proxy para /api/oauth2/authorize
+    
+    /**
+     * Inicia login social via RELAY (simulando cliente externo).
+     * 
+     * @param provider Provider OAuth2 (GOOGLE, FACEBOOK, INSTAGRAM)
+     * @param redirectUri URI de redirecionamento após autenticação
+     * @return Resposta HTTP (302 redirect para provider)
+     */
+    public Response initiateSocialLoginViaRelay(String provider, String redirectUri) {
+        RequestSpecification spec = RestAssured.given()
+            .baseUri(getRelayBaseUrl())
+            .header("request-trace-id", getRequestTraceId());
+        spec = addRequiredHeaders(spec);
+        spec = addSimulateProviderHeader(spec);
+        return spec.queryParam("provider", provider)
+            .queryParam("redirect_uri", redirectUri)
+            .when()
+            .redirects().follow(false)
+            .get("/relay/api/oauth2/authorize") // ✅ Context-path /relay + /api
+            .then()
+            .extract()
+            .response();
+    }
+    
+    /**
+     * Processa callback OAuth2 via RELAY (simulando cliente externo).
+     * 
+     * @param code Authorization code retornado pelo provider
+     * @param state State gerado na requisição inicial
+     * @param redirectUri URI de redirecionamento original
+     * @return Resposta HTTP (302 redirect com JWT ou estado pendente)
+     */
+    public Response processOAuth2CallbackViaRelay(String code, String state, String redirectUri) {
+        RequestSpecification spec = RestAssured.given()
+            .baseUri(getRelayBaseUrl())
+            .header("request-trace-id", getRequestTraceId());
+        spec = addRequiredHeaders(spec);
+        spec = addSimulateProviderHeader(spec);
+        return spec.queryParam("code", code)
+            .queryParam("state", state)
+            .queryParam("redirect_uri", redirectUri)
+            .when()
+            .redirects().follow(false)
+            .get("/relay/api/oauth2/callback") // ✅ Context-path /relay + /api
+            .then()
+            .extract()
+            .response();
+    }
+    
+    /**
+     * Valida OTP para login social via RELAY (simulando cliente externo).
+     * 
+     * @param pendingOtpId UUID do OTP pendente
+     * @param otpCode Código OTP
+     * @return Resposta HTTP
+     */
+    public Response verifySocialLoginOtpViaRelay(String pendingOtpId, String otpCode) {
+        RequestSpecification spec = RestAssured.given()
+            .baseUri(getRelayBaseUrl())
+            .contentType(ContentType.JSON)
+            .header("request-trace-id", getRequestTraceId());
+        spec = addRequiredHeaders(spec);
+        spec = addSimulateProviderHeader(spec);
+        
+        Map<String, String> request = new java.util.HashMap<>();
+        request.put("pendingOtpId", pendingOtpId);
+        request.put("code", otpCode);
+        
+        return spec.body(request)
+            .when()
+            .post("/relay/api/v1/auth/social/otp/verify") // ✅ Context-path /relay + /api
+            .then()
+            .extract()
+            .response();
+    }
+    
+    /**
+     * Completa account linking via RELAY (simulando cliente externo).
+     * 
+     * @param pendingLinkId UUID do PendingAccountLink
+     * @param otpCode Código OTP
+     * @return Resposta HTTP
+     */
+    public Response completeAccountLinkingViaRelay(String pendingLinkId, String otpCode) {
+        RequestSpecification spec = RestAssured.given()
+            .baseUri(getRelayBaseUrl())
+            .contentType(ContentType.JSON)
+            .header("request-trace-id", getRequestTraceId());
+        spec = addRequiredHeaders(spec);
+        spec = addSimulateProviderHeader(spec);
+        
+        Map<String, String> request = new java.util.HashMap<>();
+        request.put("pendingLinkId", pendingLinkId);
+        request.put("code", otpCode);
+        
+        return spec.body(request)
+            .when()
+            .post("/relay/api/v1/auth/social/link/verify") // ✅ Context-path /relay + /api
             .then()
             .extract()
             .response();

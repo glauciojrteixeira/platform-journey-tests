@@ -131,6 +131,7 @@ public class E2EConfiguration {
     public static class Services {
         private String identityUrl;
         private String authUrl;
+        private String authRelayUrl; // URL do relay (porta 8081, context-path /relay)
         private String profileUrl;
         private String transactionalMessagingUrl;
         private String deliveryTrackerUrl;
@@ -150,6 +151,14 @@ public class E2EConfiguration {
         
         public void setAuthUrl(String authUrl) {
             this.authUrl = authUrl;
+        }
+        
+        public String getAuthRelayUrl() {
+            return authRelayUrl;
+        }
+        
+        public void setAuthRelayUrl(String authRelayUrl) {
+            this.authRelayUrl = authRelayUrl;
         }
         
         public String getProfileUrl() {

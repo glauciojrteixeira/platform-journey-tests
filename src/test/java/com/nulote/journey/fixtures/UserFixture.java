@@ -15,6 +15,8 @@ public class UserFixture {
     private String createdUserUuid;
     private String otpCode;
     private String sessionToken;
+    private String jwtToken;
+    private String providerEmail; // Email do provider para account linking (quando corresponde ao email do usuário existente)
     
     /**
      * Define os dados do usuário a partir de uma DataTable do Cucumber
@@ -93,6 +95,42 @@ public class UserFixture {
      */
     public String getSessionToken() {
         return sessionToken;
+    }
+    
+    /**
+     * Define o JWT token obtido após autenticação
+     * 
+     * @param jwtToken Token JWT
+     */
+    public void setJwtToken(String jwtToken) {
+        this.jwtToken = jwtToken;
+    }
+    
+    /**
+     * Retorna o JWT token
+     * 
+     * @return JWT token ou null se ainda não foi obtido
+     */
+    public String getJwtToken() {
+        return jwtToken;
+    }
+    
+    /**
+     * Define o email do provider para account linking (quando corresponde ao email do usuário existente)
+     * 
+     * @param providerEmail Email do provider
+     */
+    public void setProviderEmail(String providerEmail) {
+        this.providerEmail = providerEmail;
+    }
+    
+    /**
+     * Retorna o email do provider
+     * 
+     * @return Email do provider ou null se ainda não foi configurado
+     */
+    public String getProviderEmail() {
+        return providerEmail;
     }
     
     /**
